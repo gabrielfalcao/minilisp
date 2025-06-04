@@ -1,0 +1,264 @@
+#[macro_export]
+macro_rules! location {
+    () => {{
+        let location = format!(
+            "{}{}{}:{}",
+            minilisp_util::color::fg($crate::function_name!(), 28),
+            minilisp_util::color::fg(" @ ", 220),
+            $crate::filename!(),
+            minilisp_util::color::fg(line!().to_string(), 49)
+        );
+        location
+    }};
+    (begin) => {
+        $crate::tag!(minilisp_util::color::fg(
+            format!("in function {}", $crate::location!()),
+            178
+        ))
+    };
+    (end) => {
+        $crate::tag!(
+            close,
+            minilisp_util::color::fg(format!("from function {}", $crate::location!()), 178)
+        )
+    };
+    (unexpected) => {
+        minilisp_util::color::fg(
+            format!("<unexpected branch in function {}>", $crate::location!()),
+            160,
+        )
+    };
+}
+#[macro_export]
+macro_rules! filename {
+    () => {
+        $crate::filename!(237, 49)
+    };
+    ($folder_color:literal, $file_color:literal) => {{
+        let mut parts = file!()
+            .split(std::path::MAIN_SEPARATOR_STR)
+            .map(String::from)
+            .collect::<Vec<String>>();
+        let (folder, filename) = if parts.len() > 1 {
+            let last = minilisp_util::color::fg(parts.remove(parts.len() - 1), $file_color);
+            let mut parts = parts
+                .iter()
+                .map(|part| minilisp_util::color::fg(part, $folder_color))
+                .collect::<Vec<String>>();
+            (parts, last)
+        } else {
+            (
+                Vec::<String>::new(),
+                minilisp_util::color::fg(parts[0].to_string(), $file_color)
+            )
+        };
+        if folder.len() > 1 {
+            format!("{}{}{}", filename, minilisp_util::color::fg(" in ", 7), folder.join(std::path::MAIN_SEPARATOR_STR))
+        } else {
+            filename
+        }
+    }};
+}
+#[macro_export]
+macro_rules! tag {
+    ($arg:expr) => {{
+        $crate::tag!($arg, 7)
+    }};
+    (close, $arg:expr) => {{
+        $crate::tag!(close, $arg, 7)
+    }};
+    ($arg:expr, $color:literal) => {{
+        format!(
+            "{}{}{}",
+            minilisp_util::color::fg("<", $color),
+            $arg,
+            minilisp_util::color::fg(">", $color),
+        )
+    }};
+    (close, $arg:expr, $color:literal) => {{
+        format!(
+            "{}{}{}",
+            minilisp_util::color::fg("</", $color),
+            $arg,
+            minilisp_util::color::fg(">", $color),
+        )
+    }};
+}
+#[macro_export]
+macro_rules! dbg {
+    ($( $arg:expr ),* ) => {{
+        let obj = format!("{}", [$(
+            format!("{}", $crate::indent_objdump!($arg)),
+        )*].iter().map(minilisp_util::color::reset).collect::<Vec<String>>().join("\n"));
+        eprintln!("{}", minilisp_util::color::reset([$crate::location!(begin), obj, $crate::location!(end)].join("\n")));
+    }};
+}
+#[macro_export]
+macro_rules! indent_objdump {
+    ($indentation:literal, $obj:expr) => {{
+        minilisp_formatter::highlight_code_string(format!("{:#?}", $obj))
+            .expect(format!("highlight code in {}:{}", file!(), line!()).as_str())
+            .lines()
+            .map(|line| format!("{}{}", " ".repeat($indentation), line))
+            .collect::<Vec<String>>()
+            .join("\n")
+    }};
+    ($obj:expr) => {{
+        $crate::indent_objdump!(4, $obj)
+    }};
+}
+
+#[macro_export]
+macro_rules! function_name {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        let name = name
+            .strip_suffix("::f")
+            .unwrap()
+            .replace(format!("{}::", module_path!()).as_str(), "");
+        name
+    }};
+}
+
+#[macro_export]
+macro_rules! unexpected {
+    ($( $arg:expr ),* ) => {{
+        $(
+            let obj = format!("{:#?}", $arg);
+            eprintln!("{}", minilisp_util::color::reset([obj, $crate::location!(unexpected)].join(" ")));
+        )*
+        std::process::exit(107);
+    }};
+    () => {
+        $crate::unexpected!("reach");
+    };
+}
+#[macro_export]
+macro_rules! caller {
+    () => {
+        $crate::Caller($crate::function_name!().to_string(), file!().to_string(), line!())
+    };
+}
+
+#[macro_export]
+macro_rules! with_caller {
+    ($error:expr) => {{
+        use minilisp_util::Traceback;
+        $error.with($crate::caller!())
+    }};
+}
+
+#[macro_export]
+macro_rules! map_call_to_result {
+    ($result:expr) => {{
+        use minilisp_util::Traceback;
+        $result.map_err(|error| $crate::with_caller!(crate::Error::from(error)))
+    }};
+}
+#[macro_export]
+macro_rules! try_result {
+    ($result:expr) => {{
+        use minilisp_util::Traceback;
+        $crate::map_call_to_result!($result)?
+    }};
+}
+
+#[macro_export]
+macro_rules! unwrap_result {
+    ($result:expr) => {{
+        use minilisp_util::Traceback;
+        $crate::map_call_to_result!($result).unwrap()
+    }};
+}
+
+#[macro_export]
+macro_rules! impl_error {
+    ($name:ident, $type:ty) => {
+        #[derive(Clone, PartialEq, Eq)]
+        pub struct Error {
+            message: String,
+            ty: $type,
+            callers: Vec<minilisp_util::Caller>,
+        }
+        impl Error {
+            pub fn new<T: std::fmt::Display>(message: T, ty: $type) -> Self {
+                let message = message.to_string();
+                Error {
+                    message,
+                    ty,
+                    callers: Vec::new(),
+                }
+            }
+        }
+        impl std::error::Error for $name {}
+
+        impl $crate::Traceback for $name {
+            fn message(&self) -> String {
+                self.message.to_string()
+            }
+
+            fn callers(&self) -> Vec<$crate::Caller> {
+                self.callers.to_vec()
+            }
+
+            fn with(&self, caller: $crate::Caller) -> Self {
+                let mut error = self.clone();
+                error.callers.insert(0, caller);
+                error
+            }
+        }
+        impl std::fmt::Display for Error {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}\n\nreason: {}", self.ty, self.highlight_message())
+            }
+        }
+        impl std::fmt::Debug for Error {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                let ty = self.ty.to_string();
+                let source = self.to_string();
+                write!(
+                    f,
+                    "{}{}",
+                    if ty == source {
+                        ty.to_string()
+                    } else {
+                        format!("{} in source:\n{}", ty, source)
+                    },
+                    if self.callers.len() > 0 {
+                        format!("\n\nStacktrace:\n{}\n", self.callers_to_string(4))
+                    } else {
+                        String::new()
+                    }
+                )
+            }
+        }
+        pub type Result<T> = std::result::Result<T, Error>;
+        #[macro_export]
+        macro_rules! try_result {
+            ($result: expr) => {{
+                use minilisp_util::Traceback;
+                $crate::map_call_to_result!($result)?
+            }};
+        }
+        #[macro_export]
+        macro_rules! map_call_to_result {
+            ($result: expr) => {{
+                use minilisp_util::Traceback;
+                $result.map_err(|error| minilisp_util::with_caller!(crate::Error::from(error)))
+            }};
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! string_to_str {
+    ($ref:expr, $lifetime:lifetime) => {
+        unsafe {
+            std::mem::transmute::<&str, &$lifetime str>($ref)
+        }
+    };
+}

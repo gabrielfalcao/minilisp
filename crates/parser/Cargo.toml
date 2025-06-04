@@ -1,0 +1,32 @@
+[package]
+name = "minilisp-parser"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+autoexamples = false
+autobenches = false
+autotests = false
+
+[package.metadata]
+cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps"]
+
+[dependencies]
+pest = { workspace = true }
+pest_derive = { workspace = true }
+minilisp-util = { workspace = true }
+minilisp-formatter = { workspace = true }
+
+[dev-dependencies]
+k9 = { workspace = true }
+
+[[test]]
+name = "test_parse"
+path = "./tests/test_parse.rs"

@@ -1,0 +1,52 @@
+[package]
+name = "minilisp"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+autoexamples = false
+autobenches = false
+autotests = false
+
+[package.metadata]
+cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
+
+[dependencies]
+clap = { workspace = true }
+iocore = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+rustyline = { workspace = true }
+
+minilisp-formatter = { workspace = true }
+minilisp-old-macros = { workspace = true }
+minilisp-parser = { workspace = true }
+minilisp-traits = { workspace = true }
+minilisp-util = { workspace = true }
+minilisp-vm = { workspace = true }
+
+[dev-dependencies]
+k9 = {workspace = true}
+
+[lib]
+name = "minilisp"
+path = "src/lib.rs"
+doctest = false
+bench = false
+test = true
+
+[[bin]]
+name = "minilisp"
+path = "./minilisp.rs"
+doctest = false
+bench = false
+doc = false
+test = false

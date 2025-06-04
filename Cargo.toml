@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/parser",
+    "crates/formatter",
+    "crates/util",
+]
+
+[workspace.package]
+description = "minilisp"
+version = "0.0.1"
+edition = "2021"
+readme = "README.md"
+homepage = "https://crates.io/crates/minilisp"
+documentation = "https://docs.rs/minilisp"
+repository = "https://github.com/minilisp/minilisp"
+license = "MIT OR Apache-2.0"
+keywords = []
+authors = []
+categories = []
+
+[workspace.dependencies]
+clap = { version = "4.5.37", features = ["derive", "env", "string", "unicode", "wrap_help"] }
+iocore = "3.0.3"
+iocore-test = "3.0.3"
+pest = "2.8.0"
+pest_derive = "2.8.0"
+prettyplease = "0.2.32"
+proc-macro2 = { version = "1.0.95", features = ["span-locations"] }
+quote = "1.0.40"
+rustyline = "15.0.0"
+serde = { version = "1.0.219", features = ["derive"] }
+syn = { version = "2.0.101", features = ["full"] }
+syntect = "5.2.0"
+minilisp = { path = "crates/lang" }
+minilisp-formatter = { path = "crates/formatter" }
+minilisp-util = { path = "crates/util" }
+minilisp-parser = { path = "crates/parser" }
+k9 = "0.12.0"

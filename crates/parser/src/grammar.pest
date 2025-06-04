@@ -1,0 +1,24 @@
+file = { SOI ~ (NEWLINE* ~ statement ~ NEWLINE*)* ~ EOI}
+
+t                       = { "t" }
+nil                     = { "nil" }
+string                  = { "\"" ~ juice ~ "\"" }
+unsigned                = { ("0" | '1'..'9' ~ '0'..'9' * ) }
+integer                 = { "-" ? ~ unsigned }
+float                   = { "-" ? ~ unsigned ~ ("." ~ unsigned)? }
+juice                   = { (!("\"") ~ ANY)* }
+
+open_paren              = @{ "(" }
+quote                   = @{ "'" }
+backquote               = @{ "`" }
+comma                   = @{ "," }
+close_paren             = @{ ")" }
+
+statement               = { open_paren ~ item* ~ close_paren }
+item                    = { value | symbol }
+
+value                   = { (t | nil | float | integer | unsigned | string) }
+symbol                  = { ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+
+delimiter               = _{ NEWLINE+ }
+WHITESPACE              = _{ " " | "\t" | "\n" }
