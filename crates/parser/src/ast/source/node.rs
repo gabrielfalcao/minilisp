@@ -8,14 +8,13 @@ use minilisp_util::string_to_str;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeInfo<'a> {
     pub input: &'a str,
-    pub string: &'a str,
     pub start_pos: NodePosition,
     pub end_pos: NodePosition,
     pub source: SourceInfo<'a>,
 }
 impl<'a> std::fmt::Display for NodeInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.string)
+        write!(f, "{}", self.input)
     }
 }
 impl<'a> std::fmt::Debug for NodeInfo<'a> {
@@ -23,7 +22,7 @@ impl<'a> std::fmt::Debug for NodeInfo<'a> {
         write!(
             f,
             "stub_node_info(&input, {:#?}, {:#?}, {:#?})",
-            self.string,
+            self.input,
             self.start_pos.to_tuple(),
             self.end_pos.to_tuple()
         )
@@ -31,10 +30,6 @@ impl<'a> std::fmt::Debug for NodeInfo<'a> {
 }
 
 impl<'a> NodeInfo<'a> {
-    pub fn string(&self) -> &'a str {
-        self.string
-    }
-
     pub fn input(&self) -> &'a str {
         self.input
     }
@@ -43,9 +38,9 @@ impl<'a> NodeInfo<'a> {
         self.source.filename()
     }
 
-    pub fn with_string(&self, string: &'a str) -> NodeInfo<'a> {
+    pub fn with_input(&self, input: &'a str) -> NodeInfo<'a> {
         let mut info = self.clone();
-        info.string = string;
+        info.input = input;
         info
     }
 
@@ -55,7 +50,7 @@ impl<'a> NodeInfo<'a> {
         let end_pos = NodePosition::from_pest(span.end_pos());
         NodeInfo {
             input: string_to_str!(&pair.get_input(), 'a),
-            string: string_to_str!(&pair.to_string(), 'a),
+            // string: string_to_str!(&pair.to_string(), 'a),
             start_pos,
             end_pos,
             source: source_info.clone(),

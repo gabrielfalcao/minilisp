@@ -39,8 +39,7 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, SourceInfo<'a>> {
         return Error::new(
             e.variant.message().to_string(),
             Some(NodeInfo {
-                input: string_to_str!(input, 'a),
-                string: string_to_str!(e.line(), 'a),
+                input: string_to_str!(e.line(), 'a),
                 start_pos,
                 end_pos,
                 source: source_info.clone(),
