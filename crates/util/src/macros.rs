@@ -262,3 +262,12 @@ macro_rules! string_to_str {
         }
     };
 }
+
+#[macro_export]
+macro_rules! extend_lifetime {
+    (&$lifetime:lifetime $name:ty, $ref:expr) => {
+        unsafe {
+            std::mem::transmute::<&$name, &$lifetime $name>($ref)
+        }
+    };
+}

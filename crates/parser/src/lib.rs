@@ -13,10 +13,13 @@ pub use ast::{
     SourceInfo,
 };
 use minilisp_formatter::highlight_code_string;
-use minilisp_util::{string_to_str, try_result};
+use minilisp_util::{extend_lifetime, string_to_str, try_result};
 use pest::error::LineColLocation;
-use pest::Parser;
+use pest::iterators::{Pair, Pairs};
+use pest::{Parser, RuleType};
 use pest_derive::Parser;
+
+pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 
 #[derive(Parser, Debug, Clone)]
 #[grammar = "src/grammar.pest"]
@@ -27,26 +30,33 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, SourceInfo<'a>> {
         filename: None,
     };
 
-    let mut source = MinilispSource::parse(Rule::file, input).map_err(|e| {
-        let (start_pos, end_pos) = match e.line_col.clone() {
-            LineColLocation::Pos(line_col) => (
-                NodePosition::from_tuple(line_col.clone()),
-                NodePosition::from_tuple(line_col.clone()),
-            ),
-            LineColLocation::Span(start_pos, end_pos) =>
-                (NodePosition::from_tuple(start_pos), NodePosition::from_tuple(end_pos)),
-        };
-        return Error::new(
-            e.variant.message().to_string(),
-            Some(NodeInfo {
-                input: string_to_str!(e.line(), 'a),
-                start_pos,
-                end_pos,
-                source: source_info.clone(),
-            }),
-        );
-    })?;
+    let mut pairs = {
+        let source = source_info.clone();
+        MinilispSource::parse(Rule::file, input).map_err(move |e| {
+            Error::new(
+                e.variant.message().to_string(),
+                Some(NodeInfo::from_error(e, extend_lifetime!(&'a SourceInfo, &source))),
+            )
+        })
+    }?;
+    let file = pairs.clone().next().unwrap();
+    eprintln!("{:#?}", NodeInfo::from_pair(&file, &source_info));
+    // let statement = file.clone().into_inner().next().unwrap();
+    // eprintln!("{:#?}", NodeInfo::from_pair(&statement, &source_info));
+    // let items = statement.clone().into_inner()
+    //     .map(|pair| NodeInfo::from_pair(extend_lifetime!(&'a Pair<Rule>, &pair), &source_info))
+    //     .collect::<Vec<NodeInfo>>();
+    // eprintln!("items: {:#?}", &items);
+    // let items = statement.into_inner().next().unwrap().into_inner()
 
-    eprintln!("{}", highlight_code_string(format!("{:#?}", &source))?);
+    // let items = pairs.next().unwrap().into_inner().next().unwrap().into_inner()
+    //     .map(|pair| NodeInfo::from_pair(extend_lifetime!(&'a Pair<Rule>, &pair.clone()), &source_info))
+    //     .collect::<Vec<NodeInfo>>();
+    // let nodes = pairs.next().unwrap().into_inner().next().unwrap().into_inner()
+    //     .map(|pair| NodeInfo::from_pair(pair, &source_info))
+    //     .collect::<Vec<NodeInfo>>();
+    // eprintln!("{:#?}", nodes);
+    // eprintln!("{}", highlight_code_string(format!("{:#?}", &nodes))?);
+    // grammar();
     Ok(source_info)
 }

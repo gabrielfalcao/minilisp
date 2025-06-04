@@ -24,6 +24,7 @@ clap = { version = "4.5.37", features = ["derive", "env", "string", "unicode", "
 iocore = "3.0.3"
 iocore-test = "3.0.3"
 pest = "2.8.0"
+pest_meta = "2.8.0"
 pest_derive = "2.8.0"
 prettyplease = "0.2.32"
 proc-macro2 = { version = "1.0.95", features = ["span-locations"] }

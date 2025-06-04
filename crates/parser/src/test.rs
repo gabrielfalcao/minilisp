@@ -1,5 +1,8 @@
+use std::borrow::Cow;
+
+use minilisp_util::{extend_lifetime, string_to_str};
+
 use crate::{NodeInfo, NodePosition, SourceInfo};
-use minilisp_util::string_to_str;
 
 pub fn stub_node_info<'a>(
     input: &'a str,
@@ -7,13 +10,18 @@ pub fn stub_node_info<'a>(
     end_pos: (usize, usize),
 ) -> NodeInfo<'a> {
     let node_info = NodeInfo {
-        source: SourceInfo {
-            source: string_to_str!(input, 'a),
-            filename: None,
-        },
-        input: string_to_str!(input, 'a),
+        source: extend_lifetime!(
+            &'a SourceInfo,
+            &SourceInfo {
+                source: string_to_str!(&input, 'a),
+                filename: None,
+            }
+        ),
+        name: None,
+        input: string_to_str!(&input, 'a),
         start_pos: NodePosition::from_tuple(start_pos),
         end_pos: NodePosition::from_tuple(end_pos),
+        inner: None,
     };
     node_info
 }

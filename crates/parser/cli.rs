@@ -1,27 +1,26 @@
-use clap::Parser;
-use minilisp::cli::ParserDispatcher;
-use minilisp::{Error, Exit, Result};
+#![allow(unused)]
+use minilisp_parser::test::stub_input;
+use minilisp_parser::{parse_source, Result, GRAMMAR};
 
-#[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = "minilisp command-line")]
-pub struct Cli {
-    #[arg()]
-    text: Vec<String>,
-}
-impl Cli {
-    pub fn text(&self) -> String {
-        self.text.join(" ")
+pub fn grammar() {
+    match pest_meta::parse_and_optimize(GRAMMAR) {
+        Ok((strings, rules)) => {
+            dbg!(strings);
+            dbg!(rules);
+        },
+        Err(errors) => {
+            dbg!(errors);
+        }
     }
 }
 
-impl ParserDispatcher<Error> for Cli {
-    fn dispatch(&self) -> Result<()> {
-        println!("{}", &self.text.join(" "));
+fn main() -> Result<'static, ()>{
+    let input = r#"
 
-        Ok(())
-    }
-}
+(cons "a" "b")
 
-fn main() -> Exit {
-    Cli::main()
+"#.trim();
+
+    let _item = parse_source(&input)?;
+    Ok(())
 }

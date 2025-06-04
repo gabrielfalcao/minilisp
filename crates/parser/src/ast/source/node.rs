@@ -1,59 +1,145 @@
-use minilisp_util::{caller, dbg, try_result, unexpected, unwrap_result, with_caller};
+use std::borrow::Cow;
+
+use minilisp_util::{
+    caller, dbg, extend_lifetime, string_to_str, try_result, unexpected, unwrap_result, with_caller,
+};
+use pest::error::LineColLocation;
 use pest::iterators::Pair;
-use pest::Position;
+use pest::{Position, RuleType};
 
-use crate::{NodePosition, Rule, SourceInfo};
-use minilisp_util::string_to_str;
-
+use crate::{Error, NodePosition, Rule, SourceInfo};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NodeInfo<'a> {
     pub input: &'a str,
+    pub name: Option<String>,
     pub start_pos: NodePosition,
     pub end_pos: NodePosition,
-    pub source: SourceInfo<'a>,
+    pub source: &'a SourceInfo<'a>,
+    pub inner: Option<Vec<NodeInfo<'a>>>,
 }
 impl<'a> std::fmt::Display for NodeInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.input)
+        write!(
+            f,
+            "{}",
+            [
+                self.input.to_string(),
+                if let Some(nodes) = &self.inner {
+                    format!(
+                        ", [{}]",
+                        nodes
+                            .iter()
+                            .map(|node| node.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                } else {
+                    String::new()
+                }
+            ]
+            .join("")
+            .trim()
+        )
     }
 }
 impl<'a> std::fmt::Debug for NodeInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "stub_node_info(&input, {:#?}, {:#?}, {:#?})",
-            self.input,
-            self.start_pos.to_tuple(),
-            self.end_pos.to_tuple()
+            "{}",
+            [
+                self.name.clone().map(String::from).unwrap_or_else(|| "NodeInfo".to_string()),
+                " {".to_string(),
+                [
+                    format!("input: '{}'", self.input),
+                    if let Some(nodes) = &self.inner {
+                        format!("nodes: {:#?}", &nodes)
+                    } else {
+                        String::new()
+                    }
+                ]
+                .iter()
+                .filter(|string| string.len() > 0)
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .join(", "),
+                "}".to_string(),
+            ]
+            .join("")
         )
     }
 }
 
 impl<'a> NodeInfo<'a> {
     pub fn input(&self) -> &'a str {
-        self.input
+        &self.input
+    }
+
+    pub fn inner(&self) -> Vec<NodeInfo<'a>> {
+        if let Some(nodes) = &self.inner {
+            nodes.clone()
+        } else {
+            Vec::new()
+        }
     }
 
     pub fn filename(&self) -> Option<String> {
         self.source.filename()
     }
 
-    pub fn with_input(&self, input: &'a str) -> NodeInfo<'a> {
+    pub fn with_input(&self, input: &str) -> NodeInfo<'a> {
         let mut info = self.clone();
-        info.input = input;
+        info.input = string_to_str!(&input, 'a);
         info
     }
 
-    pub fn from_pair(pair: &'a Pair<Rule>, source_info: &'a SourceInfo) -> NodeInfo<'a> {
+    pub fn from_pair(pair: &Pair<Rule>, source: &'a SourceInfo) -> NodeInfo<'a> {
         let span = pair.as_span();
         let start_pos = NodePosition::from_pest(span.start_pos());
         let end_pos = NodePosition::from_pest(span.end_pos());
+
         NodeInfo {
-            input: string_to_str!(&pair.get_input(), 'a),
+            input: string_to_str!(span.as_str(), 'a),
+            name: Some(format!("{:#?}", pair.as_rule())),
             // string: string_to_str!(&pair.to_string(), 'a),
             start_pos,
             end_pos,
-            source: source_info.clone(),
+            source,
+            inner: {
+                let inner = pair.clone().into_inner();
+                if inner.peek().is_none() {
+                    None
+                } else {
+                    Some(inner.map(|pair| {
+                        NodeInfo::from_pair(
+                            extend_lifetime!(&'a Pair<Rule>, &pair),
+                            extend_lifetime!(&'a SourceInfo, source),
+                        )
+                    }).collect())
+                }
+            },
+        }
+    }
+
+    pub fn from_error<R: RuleType>(
+        error: pest::error::Error<R>,
+        source: &'a SourceInfo<'a>,
+    ) -> NodeInfo<'a> {
+        let (start_pos, end_pos) = match error.line_col.clone() {
+            LineColLocation::Pos(line_col) => (
+                NodePosition::from_tuple(line_col.clone()),
+                NodePosition::from_tuple(line_col.clone()),
+            ),
+            LineColLocation::Span(start_pos, end_pos) =>
+                (NodePosition::from_tuple(start_pos), NodePosition::from_tuple(end_pos)),
+        };
+        NodeInfo {
+            input: string_to_str!(&error.line().to_string(), 'a),
+            name: None,
+            start_pos,
+            end_pos,
+            source,
+            inner: None,
         }
     }
 
