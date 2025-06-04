@@ -24,7 +24,7 @@ pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 #[derive(Parser, Debug, Clone)]
 #[grammar = "src/grammar.pest"]
 pub struct MinilispSource;
-pub fn parse_source<'a>(input: &str) -> Result<'a, SourceInfo<'a>> {
+pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<NodeInfo<'a>>> {
     let source_info = SourceInfo {
         source: string_to_str!(input, 'a),
         filename: None,
@@ -40,12 +40,15 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, SourceInfo<'a>> {
         })
     }?;
     let file = pairs.clone().next().unwrap();
-    eprintln!("{:#?}", NodeInfo::from_pair(&file, &source_info));
-    // let statement = file.clone().into_inner().next().unwrap();
+    // eprintln!("{:#?}", NodeInfo::from_pair(&file, &source_info));
+    let statement = file.clone().into_inner().next().unwrap();
     // eprintln!("{:#?}", NodeInfo::from_pair(&statement, &source_info));
-    // let items = statement.clone().into_inner()
-    //     .map(|pair| NodeInfo::from_pair(extend_lifetime!(&'a Pair<Rule>, &pair), &source_info))
-    //     .collect::<Vec<NodeInfo>>();
+    let items = statement
+        .clone()
+        .into_inner()
+        .map(|pair| (pair, extend_lifetime!(&'a SourceInfo, &source_info)))
+        .map(|(pair, source)| NodeInfo::from_pair(extend_lifetime!(&'a Pair<Rule>, &pair), source))
+        .collect::<Vec<NodeInfo>>();
     // eprintln!("items: {:#?}", &items);
     // let items = statement.into_inner().next().unwrap().into_inner()
 
@@ -58,5 +61,5 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, SourceInfo<'a>> {
     // eprintln!("{:#?}", nodes);
     // eprintln!("{}", highlight_code_string(format!("{:#?}", &nodes))?);
     // grammar();
-    Ok(source_info)
+    Ok(items)
 }
