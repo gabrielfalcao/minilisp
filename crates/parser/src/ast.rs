@@ -9,4 +9,4 @@ pub use helpers::{
     // parse_error_expecting,
     // parse_error_expecting_any_of, rule_options_to_string, rule_to_string,
 };
-pub use source::{NodeInfo, NodePosition, SourceInfo};
+pub use source::{Node, NodePosition, Source};

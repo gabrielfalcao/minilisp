@@ -7,17 +7,17 @@ use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::{Position, RuleType};
 
-use crate::{Error, NodePosition, Rule, SourceInfo};
+use crate::{Error, NodePosition, Rule, Source};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NodeInfo<'a> {
+pub struct Node<'a> {
     pub input: &'a str,
     pub name: Option<String>,
     pub start_pos: NodePosition,
     pub end_pos: NodePosition,
-    pub source: &'a SourceInfo<'a>,
-    pub inner: Option<Vec<NodeInfo<'a>>>,
+    pub source: &'a Source<'a>,
+    pub inner: Option<Vec<Node<'a>>>,
 }
-impl<'a> std::fmt::Display for NodeInfo<'a> {
+impl<'a> std::fmt::Display for Node<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -42,13 +42,13 @@ impl<'a> std::fmt::Display for NodeInfo<'a> {
         )
     }
 }
-impl<'a> std::fmt::Debug for NodeInfo<'a> {
+impl<'a> std::fmt::Debug for Node<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}",
             [
-                self.name.clone().map(String::from).unwrap_or_else(|| "NodeInfo".to_string()),
+                self.name.clone().map(String::from).unwrap_or_else(|| "Node".to_string()),
                 " {".to_string(),
                 [
                     format!("input: '{}'", self.input),
@@ -70,12 +70,12 @@ impl<'a> std::fmt::Debug for NodeInfo<'a> {
     }
 }
 
-impl<'a> NodeInfo<'a> {
+impl<'a> Node<'a> {
     pub fn input(&self) -> &'a str {
         &self.input
     }
 
-    pub fn inner(&self) -> Vec<NodeInfo<'a>> {
+    pub fn inner(&self) -> Vec<Node<'a>> {
         if let Some(nodes) = &self.inner {
             nodes.clone()
         } else {
@@ -87,18 +87,18 @@ impl<'a> NodeInfo<'a> {
         self.source.filename()
     }
 
-    pub fn with_input(&self, input: &str) -> NodeInfo<'a> {
+    pub fn with_input(&self, input: &str) -> Node<'a> {
         let mut info = self.clone();
         info.input = string_to_str!(&input, 'a);
         info
     }
 
-    pub fn from_pair(pair: &Pair<Rule>, source: &'a SourceInfo) -> NodeInfo<'a> {
+    pub fn from_pair(pair: &Pair<Rule>, source: &'a Source) -> Node<'a> {
         let span = pair.as_span();
         let start_pos = NodePosition::from_pest(span.start_pos());
         let end_pos = NodePosition::from_pest(span.end_pos());
 
-        NodeInfo {
+        Node {
             input: string_to_str!(span.as_str(), 'a),
             name: Some(format!("{:#?}", pair.as_rule())),
             // string: string_to_str!(&pair.to_string(), 'a),
@@ -111,9 +111,9 @@ impl<'a> NodeInfo<'a> {
                     None
                 } else {
                     Some(inner.map(|pair| {
-                        NodeInfo::from_pair(
+                        Node::from_pair(
                             extend_lifetime!(&'a Pair<Rule>, &pair),
-                            extend_lifetime!(&'a SourceInfo, source),
+                            extend_lifetime!(&'a Source, source),
                         )
                     }).collect())
                 }
@@ -123,8 +123,8 @@ impl<'a> NodeInfo<'a> {
 
     pub fn from_error<R: RuleType>(
         error: pest::error::Error<R>,
-        source: &'a SourceInfo<'a>,
-    ) -> NodeInfo<'a> {
+        source: &'a Source<'a>,
+    ) -> Node<'a> {
         let (start_pos, end_pos) = match error.line_col.clone() {
             LineColLocation::Pos(line_col) => (
                 NodePosition::from_tuple(line_col.clone()),
@@ -133,7 +133,7 @@ impl<'a> NodeInfo<'a> {
             LineColLocation::Span(start_pos, end_pos) =>
                 (NodePosition::from_tuple(start_pos), NodePosition::from_tuple(end_pos)),
         };
-        NodeInfo {
+        Node {
             input: string_to_str!(&error.line().to_string(), 'a),
             name: None,
             start_pos,
@@ -143,7 +143,7 @@ impl<'a> NodeInfo<'a> {
         }
     }
 
-    pub fn info(&self) -> NodeInfo<'a> {
+    pub fn info(&self) -> Node<'a> {
         self.clone()
     }
 

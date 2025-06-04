@@ -3,16 +3,16 @@ use std::fmt::{Debug, Display, Formatter};
 pub use minilisp_formatter::Error as FormatterError;
 pub use minilisp_util::{color, with_caller, Caller, Traceback};
 
-use crate::ast::{NodeInfo, NodePosition, SourceInfo};
+use crate::ast::{Node, NodePosition, Source};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Error<'a> {
     message: String,
-    info: Option<NodeInfo<'a>>,
+    info: Option<Node<'a>>,
     callers: Vec<Caller>,
 }
 impl<'a> Error<'a> {
-    pub fn new<T: Display>(message: T, info: Option<NodeInfo<'a>>) -> Self {
+    pub fn new<T: Display>(message: T, info: Option<Node<'a>>) -> Self {
         let message = message.to_string();
         Error {
             message: message,
