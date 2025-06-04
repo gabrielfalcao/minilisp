@@ -15,6 +15,9 @@ autoexamples = false
 autobenches = false
 autotests = false
 
+[lib]
+doctest = false
+test = false
 [package.metadata]
 cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps"]
 

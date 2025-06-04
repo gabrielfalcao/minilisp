@@ -1,17 +1,18 @@
 use std::fmt::{Debug, Display, Formatter};
 
-pub use minilisp_util::{with_caller, Caller, Traceback};
+pub use minilisp_formatter::Error as FormatterError;
+pub use minilisp_util::{color, with_caller, Caller, Traceback};
 
 use crate::ast::{NodeInfo, NodePosition, SourceInfo};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Error<'a> {
     message: String,
-    info: NodeInfo<'a>,
+    info: Option<NodeInfo<'a>>,
     callers: Vec<Caller>,
 }
 impl<'a> Error<'a> {
-    pub fn new<T: Display>(message: T, info: NodeInfo<'a>) -> Self {
+    pub fn new<T: Display>(message: T, info: Option<NodeInfo<'a>>) -> Self {
         let message = message.to_string();
         Error {
             message: message,
@@ -40,9 +41,17 @@ impl<'a> Display for Error<'a> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
-            "\x1b[0m{}\n\n\x1b[1;48;5;198m\x1b[1;38;5;235mreason:\x1b[0m {}",
-            self.info.highlight_input(4),
-            self.highlight_message(),
+            "{}",
+            [
+                color::reset(""),
+                if let Some(info) = &self.info {
+                    color::bg(info.highlight_input(4), 198)
+                } else {
+                    String::new()
+                },
+                color::fg(format!("reason: {}", self.highlight_message()), 235),
+            ]
+            .join("")
         )
     }
 }
@@ -50,11 +59,20 @@ impl<'a> Debug for Error<'a> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
-            "\x1b[1;38;5;202min source:\n{}\n\n\x1b[1;38;5;220mStacktrace:\n{}\n",
-            self.to_string(),
-            self.callers_to_string(4)
+            "{}",
+            [
+                color::reset(""),
+                color::fg(format!("in source:\n{}", self.to_string()), 202),
+                color::reset("\n\n"),
+                color::fg(format!("Stacktrace:\n{}\n", self.callers_to_string(4)), 220),
+            ]
+            .join("")
         )
     }
 }
-
+impl<'a> From<FormatterError> for Error<'a> {
+    fn from(e: FormatterError) -> Error<'a> {
+        Error::new(e.to_string(), None)
+    }
+}
 pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
