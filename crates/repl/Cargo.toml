@@ -1,0 +1,30 @@
+[package]
+name = "minilisp-repl"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+autoexamples = false
+autobenches = false
+autotests = false
+
+[package.metadata]
+cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
+
+[dependencies]
+syn = { workspace = true }
+iocore = { workspace = true }
+minilisp-util = {workspace = true}
+rustyline = {workspace = true}
+
+[[bin]]
+name = "minilisp"
+path = "src/main.rs"
