@@ -14,11 +14,14 @@ backquote               = @{ "`" }
 comma                   = @{ "," }
 close_paren             = @{ ")" }
 
-statement               = { open_paren ~ item* ~ close_paren }
-item                    = { value | symbol }
+statement               = { item+ }
+item                    = { value | symbol | symbol_list | list }
 
 value                   = { (t | nil | float | integer | unsigned | double_quoted_string) }
-symbol                  = { ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+symbol                  = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+
+symbol_list             = { open_paren ~ symbol* ~ close_paren }
+list                    = { open_paren ~ (value | symbol)* ~ close_paren }
 
 delimiter               = _{ NEWLINE+ }
 WHITESPACE              = _{ " " | "\t" | "\n" }
