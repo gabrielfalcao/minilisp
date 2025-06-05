@@ -1,4 +1,5 @@
 #![allow(unused, non_snake_case)]
+use std::borrow::Cow;
 pub mod errors;
 pub use errors::{Caller, Error, Result};
 pub mod ast;
@@ -28,7 +29,7 @@ pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 pub struct MinilispSource;
 pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<Item<'a>>> {
     let source_info = Source {
-        source: string_to_str!(&input.to_string(), 'a),
+        source: Cow::from(input),
         filename: None,
     };
 

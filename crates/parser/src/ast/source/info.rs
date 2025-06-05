@@ -7,20 +7,20 @@ use crate::{NodePosition, Rule};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Source<'a> {
-    pub source: &'a str,
-    pub filename: Option<&'a str>,
+    pub source: Cow<'a, str>,
+    pub filename: Option<Cow<'a, str>>,
 }
 impl<'a> Source<'a> {
-    pub fn new(source: &str, filename: Option<&str>) -> Source<'a> {
+    pub fn new(source: &'a str, filename: Option<&'a str>) -> Source<'a> {
         Source {
-            source: string_to_str!(source, 'a),
-            filename: filename.map(|filename| string_to_str!(&filename, 'a))
+            source: Cow::from(source),
+            filename: filename.map(|filename| Cow::from(filename))
         }
     }
 
-    pub fn without_filename(source: &str) -> Source<'a> {
+    pub fn without_filename<T: std::fmt::Display>(source: T) -> Source<'a> {
         Source {
-            source: string_to_str!(source, 'a),
+            source: Cow::from(source.to_string()),
             filename: None,
         }
     }
@@ -30,14 +30,14 @@ impl<'a> Source<'a> {
     }
 }
 
-impl<'a> From<&str> for Source<'a> {
-    fn from(source: &str) -> Source<'a> {
+impl<'a> From<&'a str> for Source<'a> {
+    fn from(source: &'a str) -> Source<'a> {
         Source::without_filename(source)
     }
 }
 
 impl<'a> From<String> for Source<'a> {
     fn from(source: String) -> Source<'a> {
-        Source::without_filename(&source)
+        Source::without_filename(source)
     }
 }

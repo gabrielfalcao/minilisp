@@ -13,12 +13,12 @@ pub fn stub_node_info<'a>(
         source: extend_lifetime!(
             &'a Source,
             &Source {
-                source: string_to_str!(&input, 'a),
+                source: Cow::from(input),
                 filename: None,
             }
         ),
         name: None,
-        input: string_to_str!(&input, 'a),
+        input: Cow::from(input),
         start_pos: NodePosition::from_tuple(start_pos),
         end_pos: NodePosition::from_tuple(end_pos),
         inner: None,

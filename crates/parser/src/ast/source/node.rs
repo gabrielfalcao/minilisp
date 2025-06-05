@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 
 use minilisp_util::{
     caller, dbg, extend_lifetime, string_to_str, try_result, unexpected, unwrap_result, with_caller,
@@ -8,9 +8,11 @@ use pest::iterators::Pair;
 use pest::{Position, RuleType};
 
 use crate::{Error, NodePosition, Rule, Source};
+
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Node<'a> {
-    pub input: &'a str,
+    pub input: Cow<'a, str>,
     pub name: Option<String>,
     pub start_pos: NodePosition,
     pub end_pos: NodePosition,
@@ -71,8 +73,8 @@ impl<'a> std::fmt::Debug for Node<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub fn input(&self) -> &'a str {
-        &self.input
+    pub fn input(&'a self) -> &'a str {
+        self.input.borrow()
     }
 
     pub fn inner(&self) -> Vec<Node<'a>> {
@@ -87,21 +89,21 @@ impl<'a> Node<'a> {
         self.source.filename()
     }
 
-    pub fn with_input(&self, input: &str) -> Node<'a> {
+    pub fn with_input(&self, input: &'a str) -> Node<'a> {
         let mut info = self.clone();
-        info.input = string_to_str!(&input, 'a);
+        info.input = Cow::from(input);
         info
     }
 
-    pub fn from_pair(pair: &Pair<Rule>, source: &'a Source) -> Node<'a> {
+    pub fn from_pair(pair: &'a Pair<Rule>, source: &'a Source) -> Node<'a> {
         let span = pair.as_span();
         let start_pos = NodePosition::from_pest(span.start_pos());
         let end_pos = NodePosition::from_pest(span.end_pos());
 
         Node {
-            input: string_to_str!(span.as_str(), 'a),
+            input: Cow::from(span.as_str()),
             name: Some(format!("{:#?}", pair.as_rule())),
-            // string: string_to_str!(&pair.to_string(), 'a),
+            // string: Cow::from(&pair.to_string()),
             start_pos,
             end_pos,
             source,
@@ -110,21 +112,22 @@ impl<'a> Node<'a> {
                 if inner.peek().is_none() {
                     None
                 } else {
-                    Some(inner.map(|pair| {
-                        Node::from_pair(
-                            extend_lifetime!(&'a Pair<Rule>, &pair),
-                            extend_lifetime!(&'a Source, source),
-                        )
-                    }).collect())
+                    Some(
+                        inner
+                            .map(|pair| {
+                                Node::from_pair(
+                                    extend_lifetime!(&'a Pair<Rule>, &pair),
+                                    extend_lifetime!(&'a Source, source),
+                                )
+                            })
+                            .collect(),
+                    )
                 }
             },
         }
     }
 
-    pub fn from_error<R: RuleType>(
-        error: pest::error::Error<R>,
-        source: &'a Source<'a>,
-    ) -> Node<'a> {
+    pub fn from_error(error: pest::error::Error<Rule>, source: &'a Source<'a>) -> Node<'a> {
         let (start_pos, end_pos) = match error.line_col.clone() {
             LineColLocation::Pos(line_col) => (
                 NodePosition::from_tuple(line_col.clone()),
@@ -134,7 +137,7 @@ impl<'a> Node<'a> {
                 (NodePosition::from_tuple(start_pos), NodePosition::from_tuple(end_pos)),
         };
         Node {
-            input: string_to_str!(&error.line().to_string(), 'a),
+            input: Cow::from(error.line().to_string()),
             name: None,
             start_pos,
             end_pos,
