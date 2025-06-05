@@ -19,9 +19,8 @@ impl<'a> Item<'a> {
         match pair.as_rule() {
             Rule::value => Item::Value(Value::from_pair(pair)),
             Rule::symbol => Item::Symbol(string_to_str!(pair.as_span().as_str(), 'a)),
-            Rule::symbol_list =>
-                Item::List(pair.clone().into_inner().map(|mut pair| Item::from_pair(&mut pair)).collect()),
-            Rule::list => {
+            Rule::item => Item::from_pair(&mut pair.clone().into_inner().next().expect("item")),
+            Rule::list | Rule::symbol_list => {
                 let mut items = Vec::<Item<'a>>::new();
                 let mut pairs = pair.clone().into_inner();
                 pairs.next().expect("open_paren");

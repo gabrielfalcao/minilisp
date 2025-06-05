@@ -43,15 +43,7 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<Item<'a>>> {
         })
     }?;
     let mut file = pairs.next().unwrap();
-    // eprintln!("{:#?}", Node::from_pair(&file, &source_info));
     let mut statement = file.into_inner().next().unwrap();
-    // eprintln!("{:#?}", Node::from_pair(&statement, &source_info));
-    // let items = statement
-    //     .clone()
-    //     .into_inner()
-    //     .map(|pair| (pair, extend_lifetime!(&'a Source, &source_info)))
-    //     .map(|(pair, source)| Node::from_pair(extend_lifetime!(&'a Pair<Rule>, &pair), source))
-    //     .collect::<Vec<Node>>();
     let items = statement
         .into_inner()
         .map(|mut pair| Item::from_pair(&mut pair))

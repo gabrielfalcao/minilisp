@@ -3,22 +3,25 @@ file = { SOI ~ (NEWLINE* ~ statement ~ NEWLINE*)* ~ EOI}
 t                       = { "t" }
 nil                     = { "nil" }
 double_quoted_string    = _{ "\"" ~ string ~ "\"" }
-unsigned                = { ("0" | '1'..'9' ~ '0'..'9' * ) }
-integer                 = { "-" ? ~ unsigned }
-float                   = { "-" ? ~ unsigned ~ ("." ~ unsigned)? }
+unsigned                = @{ ("0" | '1'..'9' ~ '0'..'9' * ) }
+integer                 = @{ "-" ? ~ unsigned }
+float                   = @{ "-" ? ~ unsigned ~ "." ~ unsigned? }
 string                  = { (!("\"") ~ ANY)* }
 
+double_quote            = @{ "\"" }
 open_paren              = @{ "(" }
 quote                   = @{ "'" }
 backquote               = @{ "`" }
 comma                   = @{ "," }
 close_paren             = @{ ")" }
 
-statement               = { item+ }
-item                    = { value | symbol | symbol_list | list }
+reserved                = ${ open_paren | quote | backquote | comma | close_paren | double_quote | WHITESPACE }
 
-value                   = { (t | nil | float | integer | unsigned | double_quoted_string) }
-symbol                  = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+statement               = { item+ }
+item                    = { value | symbol_list | symbol | list }
+
+value                   = { (t | nil | float | unsigned | integer | double_quoted_string) }
+symbol                  = @{ (!(reserved | integer) ~ ANY)+ }
 
 symbol_list             = { open_paren ~ symbol* ~ close_paren }
 list                    = { open_paren ~ (value | symbol)* ~ close_paren }
