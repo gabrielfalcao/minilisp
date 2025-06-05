@@ -1,0 +1,52 @@
+[package]
+name = "minilisp-data-structures"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+autoexamples = false
+autobenches = false
+autotests = false
+
+[dependencies]
+minilisp-util = { workspace = true }
+minilisp-formatter = { workspace = true }
+
+[features]
+debug = []
+
+[dev-dependencies]
+k9 = { workspace = true }
+
+[package.metadata]
+cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
+
+
+
+[[test]]
+name = "unique_ptr"
+path = "./tests/test_unique_ptr.rs"
+
+[[test]]
+name = "refcounter"
+path = "./tests/test_refcounter.rs"
+
+# [[test]]
+# name = "cell_conversion"
+# path = "./tests/test_cell_conversion.rs"
+
+# [[test]]
+# name = "cons"
+# path = "./tests/test_cons.rs"
+
+# [[test]]
+# name = "cell_methods"
+# path = "./tests/test_cell_methods.rs"
