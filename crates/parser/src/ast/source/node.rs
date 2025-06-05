@@ -9,7 +9,6 @@ use pest::{Position, RuleType};
 
 use crate::{Error, NodePosition, Rule, Source};
 
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Node<'a> {
     pub input: Cow<'a, str>,
@@ -178,26 +177,29 @@ impl<'a> Node<'a> {
                 )
             })
             .map(|(line, columns)| {
-                format!(
-                    "\x1b[1;48;5;235m{}{}",
-                    " ".repeat(indent),
-                    columns
-                        .iter()
-                        .map(|(column, text)| {
-                            let column = column.clone();
-                            if line == start_pos.line && column == start_pos.column {
-                                minilisp_util::color::bgfg(text, 235, 198)
-                            } else if line == end_pos.line && column == end_pos.column {
-                                [
-                                    minilisp_util::color::reset(""),
-                                    minilisp_util::color::bg(text, 235),
-                                ]
-                                .join("")
-                            } else {
-                                minilisp_util::color::bg(text, 235)
-                            }
-                        })
-                        .collect::<String>()
+                minilisp_util::color::bg(
+                    format!(
+                        "{}{}",
+                        " ".repeat(indent),
+                        columns
+                            .iter()
+                            .map(|(column, text)| {
+                                let column = column.clone();
+                                if line == start_pos.line && column == start_pos.column {
+                                    minilisp_util::color::bgfg(text, 235, 198)
+                                } else if line == end_pos.line && column == end_pos.column {
+                                    [
+                                        minilisp_util::color::reset(""),
+                                        minilisp_util::color::bg(text, 235),
+                                    ]
+                                    .join("")
+                                } else {
+                                    minilisp_util::color::bg(text, 235)
+                                }
+                            })
+                            .collect::<String>()
+                    ),
+                    235,
                 )
             })
             .collect::<Vec<String>>()

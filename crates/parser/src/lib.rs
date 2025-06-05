@@ -33,15 +33,12 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<Item<'a>>> {
         filename: None,
     };
 
-    let mut pairs = {
-        let source = source_info.clone();
-        MinilispSource::parse(Rule::file, input).map_err(move |e| {
-            Error::new(
-                e.variant.message().to_string(),
-                Some(Node::from_error(e, extend_lifetime!(&'a Source, &source))),
-            )
-        })
-    }?;
+    let mut pairs = MinilispSource::parse(Rule::file, input).map_err(move |e| {
+        Error::new(
+            e.variant.message().to_string(),
+            Some(Node::from_error(e, extend_lifetime!(&'a Source, &source_info))),
+        )
+    })?;
     let mut file = pairs.next().unwrap();
     let mut statement = file.into_inner().next().unwrap();
     let items = statement

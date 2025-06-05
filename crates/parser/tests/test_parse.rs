@@ -4,7 +4,6 @@ use minilisp_parser::ast::{Item, Value};
 use minilisp_parser::test::stub_input;
 use minilisp_parser::{parse_source, Result};
 
-
 #[test]
 fn test_cons_of_literal_strings() -> Result<'static, ()> {
     // (cons "a" "b")
@@ -36,6 +35,21 @@ fn test_list_of_literal_strings() -> Result<'static, ()> {
 }
 
 #[test]
+fn test_quoted_list_of_literal_strings() -> Result<'static, ()> {
+    // (list "a" "b")
+    let items = parse_source(r#"'("a" "b")"#)?;
+    assert_equal!(
+        items,
+        vec![Item::List(vec![
+            Item::Symbol("list"),
+            Item::Value(Value::String("a")),
+            Item::Value(Value::String("b")),
+        ])]
+    );
+    Ok(())
+}
+
+#[test]
 fn test_call_to_function_add_two_numbers() -> Result<'static, ()> {
     // (+ 1 2)
     let items = parse_source(r#"(+ 1 2)"#)?;
@@ -49,7 +63,7 @@ fn test_call_to_function_add_two_numbers() -> Result<'static, ()> {
     );
     Ok(())
 }
-//
+
 // #[test]
 // fn test_list_of_literal_strings_and_quoted_list_of_literal_strings() -> Result<'static, ()> {
 //     // (list "a" "b" '("b" "c"))

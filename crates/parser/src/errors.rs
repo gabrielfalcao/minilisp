@@ -49,7 +49,7 @@ impl<'a> Display for Error<'a> {
                 } else {
                     String::new()
                 },
-                color::fg(format!("reason: {}", self.highlight_message()), 235),
+                color::fg(format!("\n\rreason: {}", self.highlight_message()), 242),
             ]
             .join("")
         )
@@ -63,8 +63,15 @@ impl<'a> Debug for Error<'a> {
             [
                 color::reset(""),
                 color::fg(format!("in source:\n{}", self.to_string()), 202),
-                color::reset("\n\n"),
-                color::fg(format!("Stacktrace:\n{}\n", self.callers_to_string(4)), 220),
+                if self.callers.is_empty() {
+                    String::new()
+                } else {
+                    [
+                        color::reset("\n\n"),
+                        color::fg(format!("Stacktrace:\n{}\n", self.callers_to_string(4)), 220),
+                    ]
+                    .join("")
+                }
             ]
             .join("")
         )
