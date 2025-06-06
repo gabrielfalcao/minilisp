@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use pest::iterators::Pair;
 use pest::Position;
-use minilisp_util::string_to_str;
+
 use crate::{NodePosition, Rule};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]

@@ -16,7 +16,7 @@ pub use ast::{
     Value,
 };
 use minilisp_formatter::highlight_code_string;
-use minilisp_util::{extend_lifetime, string_to_str, try_result};
+use minilisp_util::{extend_lifetime, try_result};
 use pest::error::LineColLocation;
 use pest::iterators::{Pair, Pairs};
 use pest::{Parser, RuleType};

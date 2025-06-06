@@ -8,7 +8,7 @@ use minilisp_util::{vec_deque};
 fn test_add_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
     let ast = Item::List(vec_deque![
-        Item::Symbol("+"),
+        Item::symbol("+"),
         Item::Value(Value::UnsignedInteger(2)),
         Item::Value(Value::UnsignedInteger(2)),
     ]);
@@ -23,7 +23,7 @@ fn test_add_numbers() -> Result<()> {
 fn test_subtract_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
     let ast = Item::List(vec_deque![
-        Item::Symbol("-"),
+        Item::symbol("-"),
         Item::Value(Value::UnsignedInteger(5)),
         Item::Value(Value::UnsignedInteger(2)),
     ]);
@@ -38,7 +38,7 @@ fn test_subtract_numbers() -> Result<()> {
 fn test_multiply_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
     let ast = Item::List(vec_deque![
-        Item::Symbol("*"),
+        Item::symbol("*"),
         Item::Value(Value::Integer(3)),
         Item::Value(Value::Integer(7)),
     ]);
@@ -53,7 +53,7 @@ fn test_multiply_numbers() -> Result<()> {
 fn test_divide_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
     let ast = Item::List(vec_deque![
-        Item::Symbol("/"),
+        Item::symbol("/"),
         Item::Value(Value::Float(30.0)),
         Item::Value(Value::Float(3.0)),
     ]);

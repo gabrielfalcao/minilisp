@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, Cow};
 
 use minilisp_util::{
-    caller, dbg, extend_lifetime, string_to_str, try_result, unexpected, unwrap_result, with_caller,
+    caller, dbg, extend_lifetime, try_result, unexpected, unwrap_result, with_caller,
 };
 use pest::error::LineColLocation;
 use pest::iterators::Pair;

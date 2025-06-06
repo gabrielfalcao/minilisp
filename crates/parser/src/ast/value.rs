@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 use minilisp_util::{
-    caller, dbg, extend_lifetime, string_to_str, try_result, unexpected, unwrap_result, with_caller,
+    caller, dbg, extend_lifetime, try_result, unexpected, unwrap_result, with_caller,
 };
 use pest::iterators::Pair;
 
@@ -14,8 +14,8 @@ use crate::Rule;
 pub enum Value<'a> {
     Float(f64),
     Integer(i64),
-    String(&'a str),
-    // String(Cow<'a, str>),
+    // String(&'a str),
+    String(Cow<'a, str>),
     UnsignedInteger(u64),
     T,
     #[default]
@@ -71,9 +71,9 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn as_str<'c>(&self) -> Option<&'c str> {
+    pub fn as_str<'c>(&self) -> Option<&str> {
         if let Value::String(value) = self {
-            Some(string_to_str!(&value, 'c))
+            Some(value)
         } else {
             None
         }
@@ -103,7 +103,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn to_str<'c>(&self) -> &'c str {
+    pub fn to_str(&self) -> & str {
         if let Some(value) = self.as_str() {
             value
         } else {
@@ -117,7 +117,7 @@ impl<'a> Value<'a> {
             Rule::float => Value::Float(f64::from_str(pair.as_span().as_str()).expect("float")),
             Rule::integer =>
                 Value::Integer(i64::from_str(pair.as_span().as_str()).expect("integer")),
-            Rule::string => Value::String(string_to_str!(&pair.as_span().as_str(), 'a)),
+            Rule::string => Value::String(Cow::from(pair.as_span().as_str().to_string())),
             Rule::t => Value::T,
             Rule::unsigned => Value::UnsignedInteger(
                 u64::from_str(pair.as_span().as_str()).expect("unsigned integer"),
@@ -147,11 +147,17 @@ impl<'a, 'c> Into<f64> for Value<'a> {
     }
 }
 
-impl<'a> Into<&'a str> for Value<'a> {
-    fn into(self) -> &'a str {
-        self.to_str()
+impl<'a, 'c> From<&str> for Value<'a> {
+    fn from(v: &str) -> Value<'a> {
+        Value::String(Cow::from(v.to_string()))
     }
 }
+
+// impl<'a> Into<&'a str> for Value<'a> {
+//     fn into(self) -> &'a str {
+//         self.to_str()
+//     }
+// }
 
 impl<'a> PartialEq<&Value<'a>> for Value<'a> {
     fn eq(&self, other: &&Value<'a>) -> bool {

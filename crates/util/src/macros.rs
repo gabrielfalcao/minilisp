@@ -281,17 +281,9 @@ macro_rules! impl_error {
 }
 
 #[macro_export]
-macro_rules! string_to_str {
-    ($ref:expr, $lifetime:lifetime) => {
-        unsafe {
-            std::mem::transmute_copy::<&str, &$lifetime str>($ref)
-        }
-    };
-}
-#[macro_export]
 macro_rules! format_to_str {
     (&$lifetime:lifetime $text:literal, $( $arg:expr ),* $(,)? ) => {
-        $crate::string_to_str!(&format!($text, $($arg,)*).as_str(), $lifetime)
+        std::borrow::Cow::from(format!($text, $($arg,)*).as_str())
     };
 }
 

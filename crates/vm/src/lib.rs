@@ -1,6 +1,8 @@
 #![allow(unused)]
 #![feature(trait_alias)]
 
+use std::borrow::Cow;
+
 pub use errors::{Error, ErrorType, Result};
 pub mod builtin;
 pub mod errors;
@@ -12,14 +14,14 @@ use std::hash::{Hash, Hasher};
 pub mod helpers;
 pub use helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
 use minilisp_parser::{Item, Value};
-use minilisp_util::{extend_lifetime, format_to_str, string_to_str, unexpected, with_caller}; //BinaryHeap;
+use minilisp_util::{extend_lifetime, format_to_str, unexpected, with_caller}; //BinaryHeap;
 
 pub type BuiltinFunction = for<'c> fn(&mut Closure<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
 
 #[derive(Clone)]
 pub enum Symbol<'c> {
     Item(Item<'c>),
-    BuiltinFunction(&'c str, BuiltinFunction),
+    BuiltinFunction(Cow<'c, str>, BuiltinFunction),
 }
 
 impl<'c> Debug for Symbol<'c> {
@@ -41,7 +43,7 @@ impl<'c> Symbol<'c> {
             Symbol::Item(item) => item.clone(),
             Symbol::BuiltinFunction(sym, function) => {
                 warn!(format!("symbol {} is a builtin-function", sym));
-                Item::Symbol(sym)
+                Item::symbol(sym)
             },
         }
     }
@@ -64,11 +66,11 @@ impl<'c> PartialOrd for Symbol<'c> {
 
 #[derive(Debug, Clone, Default)]
 pub struct Closure<'c> {
-    symbols: BTreeMap<&'c str, Symbol<'c>>,
+    symbols: BTreeMap<String, Symbol<'c>>,
 }
 
 impl<'c> Closure<'c> {
-    pub fn new(symbols: BTreeMap<&'c str, Symbol<'c>>) -> Closure<'c> {
+    pub fn new(symbols: BTreeMap<String, Symbol<'c>>) -> Closure<'c> {
         Closure { symbols }
     }
 
@@ -76,7 +78,7 @@ impl<'c> Closure<'c> {
         with_caller!(Error::with_previous_error(message, ErrorType::RuntimeError, previous))
     }
 
-    pub fn symbols(&self) -> BTreeMap<&'c str, Symbol<'c>> {
+    pub fn symbols(&self) -> BTreeMap<String, Symbol<'c>> {
         self.symbols.clone()
     }
 
@@ -132,11 +134,11 @@ impl<'c> Closure<'c> {
                 let car = list.pop_front().unwrap();
                 match car {
                     Item::Symbol(symbol) =>
-                        Ok(try_result!(self.eval_symbol_function(symbol, list))),
+                        Ok(try_result!(self.eval_symbol_function(&symbol, list))),
                     item => unexpected!(item),
                 }
             },
-            Item::Symbol(symbol) => Ok(try_result!(self.eval_symbol(symbol))),
+            Item::Symbol(symbol) => Ok(try_result!(self.eval_symbol(&symbol))),
             Item::Value(value) => Ok(value),
         }
     }
@@ -148,7 +150,7 @@ impl<'c> Closure<'c> {
                 Item::Value(value) => Ok(value.clone()),
                 Item::List(list) => {
                     let debug = format!("{:#?}", list);
-                    Ok(Value::String(string_to_str!(&debug.as_str(), 'c)))
+                    Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },
                 Item::Symbol(item_sym) =>
                     if sym != *item_sym {
@@ -157,17 +159,17 @@ impl<'c> Closure<'c> {
                             None
                         )))
                     } else {
-                        Ok(Value::String(string_to_str!(&sym, 'c)))
+                        Ok(Value::String(Cow::from(sym.to_string())))
                     },
             },
             Symbol::BuiltinFunction(sym, _) =>
-                Ok(Value::String(format_to_str!(&'c "builtin function {:#?}", sym))),
+                Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),
         }
     }
 }
 #[derive(Debug, Clone, Default)]
 pub struct VirtualMachine<'c> {
-    symbols: BTreeMap<&'c str, Symbol<'c>>,
+    symbols: BTreeMap<String, Symbol<'c>>,
     stack: VecDeque<Closure<'c>>,
 }
 
@@ -183,7 +185,7 @@ impl<'c> VirtualMachine<'c> {
     }
 
     pub fn register_builtin_function(&mut self, sym: &'c str, function: BuiltinFunction) {
-        self.symbols.insert(sym, Symbol::<'c>::BuiltinFunction(sym, function));
+        self.symbols.insert(sym.to_string(), Symbol::<'c>::BuiltinFunction(Cow::from(sym.to_string()), function));
     }
 
     pub fn eval_ast(&mut self, mut item: Item<'c>) -> Result<Value<'c>> {

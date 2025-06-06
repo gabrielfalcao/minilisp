@@ -13,8 +13,8 @@ fn test_cons_of_literal_strings() -> Result<'static, ()> {
         items,
         vec_deque![Item::List(vec_deque![
             Item::Symbol("cons"),
-            Item::Value(Value::String("a")),
-            Item::Value(Value::String("b")),
+            Item::Value(Value::from("a")),
+            Item::Value(Value::from("b")),
         ])]
     );
     Ok(())
@@ -28,8 +28,8 @@ fn test_list_of_literal_strings() -> Result<'static, ()> {
         items,
         vec_deque![Item::List(vec_deque![
             Item::Symbol("list"),
-            Item::Value(Value::String("a")),
-            Item::Value(Value::String("b")),
+            Item::Value(Value::from("a")),
+            Item::Value(Value::from("b")),
         ])]
     );
     Ok(())
@@ -43,8 +43,8 @@ fn test_quoted_list_of_literal_strings() -> Result<'static, ()> {
         items,
         vec_deque![Item::List(vec_deque![
             Item::Symbol("list"),
-            Item::Value(Value::String("a")),
-            Item::Value(Value::String("b")),
+            Item::Value(Value::from("a")),
+            Item::Value(Value::from("b")),
         ])]
     );
     Ok(())
@@ -73,12 +73,12 @@ fn test_list_of_literal_strings_and_quoted_list_of_literal_strings() -> Result<'
         items,
         vec_deque![Item::List(vec_deque![
             Item::Symbol("list"),
-            Item::Value(Value::String("a")),
-            Item::Value(Value::String("b")),
+            Item::Value(Value::from("a")),
+            Item::Value(Value::from("b")),
             Item::List(vec_deque![
                 Item::Symbol("list"),
-                Item::Value(Value::String("c")),
-                Item::Value(Value::String("d")),
+                Item::Value(Value::from("c")),
+                Item::Value(Value::from("d")),
             ]),
         ])]
     );
@@ -93,11 +93,11 @@ fn test_cons_of_car_literal_string_and_cdr_quoted_list_of_literal_strings() -> R
         items,
         vec_deque![Item::List(vec_deque![
             Item::Symbol("cons"),
-            Item::Value(Value::String("a")),
+            Item::Value(Value::from("a")),
             Item::List(vec_deque![
                 Item::Symbol("list"),
-                Item::Value(Value::String("b")),
-                Item::Value(Value::String("c")),
+                Item::Value(Value::from("b")),
+                Item::Value(Value::from("c")),
             ]),
         ])]
     );
@@ -109,7 +109,7 @@ fn test_print() -> Result<'static, ()> {
     let items = parse_source(r#"(print "t")"#)?;
     assert_equal!(
         items,
-        vec_deque![Item::List(vec_deque![Item::Symbol("print"), Item::Value(Value::String("t")),])]
+        vec_deque![Item::List(vec_deque![Item::Symbol("print"), Item::Value(Value::from("t")),])]
     );
     Ok(())
 }
@@ -126,11 +126,11 @@ fn test_defun() -> Result<'static, ()> {
             Item::List(vec_deque![]),
             Item::List(vec_deque![
                 Item::Symbol("cons"),
-                Item::Value(Value::String("a")),
+                Item::Value(Value::from("a")),
                 Item::List(vec_deque![
                     Item::Symbol("list"),
-                    Item::Value(Value::String("b")),
-                    Item::Value(Value::String("c")),
+                    Item::Value(Value::from("b")),
+                    Item::Value(Value::from("c")),
                 ])
             ])
         ])]

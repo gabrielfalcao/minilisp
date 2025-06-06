@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use minilisp_util::{extend_lifetime, string_to_str};
+use minilisp_util::{extend_lifetime};
 
 use crate::{Node, NodePosition, Source};
 

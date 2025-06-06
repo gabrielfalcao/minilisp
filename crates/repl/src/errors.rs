@@ -5,6 +5,7 @@ pub enum ErrorType {
     IOError,
     SyntectError,
     FormatError,
+    RuntimeError,
     ReplError,
 }
 impl std::fmt::Display for ErrorType {
@@ -16,6 +17,7 @@ impl std::fmt::Display for ErrorType {
                 Self::IOError => "IOError",
                 Self::SyntectError => "SyntectError",
                 Self::FormatError => "FormatError",
+                Self::RuntimeError => "RuntimeError",
                 Self::ReplError => "ReplError",
             }
         )
@@ -46,5 +48,11 @@ impl From<syntect::Error> for Error {
 impl From<rustyline::Error> for Error {
     fn from(e: rustyline::Error) -> Self {
         Error::new(e, ErrorType::ReplError)
+    }
+}
+
+impl From<minilisp_vm::Error> for Error {
+    fn from(e: minilisp_vm::Error) -> Self {
+        Error::new(e, ErrorType::RuntimeError)
     }
 }
