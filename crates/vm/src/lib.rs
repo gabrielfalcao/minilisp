@@ -12,11 +12,14 @@ use std::collections::{BTreeMap, BinaryHeap, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 pub mod helpers;
-pub use helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
+pub use helpers::{
+    runtime_error, unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
+};
 use minilisp_parser::{Item, Value};
-use minilisp_util::{extend_lifetime, format_to_str, unexpected, with_caller}; //BinaryHeap;
+use minilisp_util::{extend_lifetime, format_to_str, unexpected, with_caller, dbg}; //BinaryHeap;
 
-pub type BuiltinFunction = for<'c> fn(&mut Closure<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
+pub type BuiltinFunction =
+    for<'c> fn(&mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
 
 #[derive(Clone)]
 pub enum Symbol<'c> {
@@ -65,38 +68,58 @@ impl<'c> PartialOrd for Symbol<'c> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Closure<'c> {
+pub struct VirtualMachine<'c> {
     symbols: BTreeMap<String, Symbol<'c>>,
+    stack: VecDeque<VirtualMachine<'c>>,
 }
 
-impl<'c> Closure<'c> {
-    pub fn new(symbols: BTreeMap<String, Symbol<'c>>) -> Closure<'c> {
-        Closure { symbols }
+impl<'c> VirtualMachine<'c> {
+    pub fn new() -> VirtualMachine<'c> {
+        let mut vm = VirtualMachine::<'c>::default();
+        vm.register_builtin_function("setq", builtin::state::setq);
+        vm.register_builtin_function("list", builtin::list::list);
+        vm.register_builtin_function("car", builtin::list::car);
+        vm.register_builtin_function("cdr", builtin::list::cdr);
+        vm.register_builtin_function("cons", builtin::list::cons);
+        vm.register_builtin_function("+", builtin::math::arithmetic::add);
+        vm.register_builtin_function("-", builtin::math::arithmetic::sub);
+        vm.register_builtin_function("*", builtin::math::arithmetic::mul);
+        vm.register_builtin_function("/", builtin::math::arithmetic::div);
+        vm.register_builtin_function("print", builtin::string::print);
+        vm
     }
 
-    pub fn runtime_error(&self, message: String, previous: Option<Error>) -> Error {
-        with_caller!(Error::with_previous_error(message, ErrorType::RuntimeError, previous))
+    pub fn register_builtin_function(&mut self, sym: &'c str, function: BuiltinFunction) {
+        self.symbols.insert(
+            sym.to_string(),
+            Symbol::<'c>::BuiltinFunction(Cow::from(sym.to_string()), function),
+        );
     }
 
     pub fn symbols(&self) -> BTreeMap<String, Symbol<'c>> {
         self.symbols.clone()
     }
 
-    pub fn get_symbol_function(&self, sym: &str) -> Result<BuiltinFunction> {
+    pub fn get_symbol_function(&mut self, sym: &str) -> Result<BuiltinFunction> {
         let symbol = try_result!(self.get_symbol(sym)).clone();
         match symbol {
-            Symbol::Item(item) => Err(with_caller!(self
-                .runtime_error(format!("symbol {:#?} is not a function: {:#?}", sym, item), None))),
+            Symbol::Item(item) => Err(with_caller!(runtime_error(
+                format!("symbol {:#?} is not a function: {:#?}", sym, item),
+                None
+            ))),
 
             Symbol::BuiltinFunction(_sym, function) => Ok(function),
         }
     }
 
-    pub fn get_symbol(&self, sym: &str) -> Result<&Symbol<'c>> {
+    pub fn get_symbol(&mut self, sym: &str) -> Result<&Symbol<'c>> {
+        if !self.symbols.contains_key(sym) {
+            self.symbols.insert(sym.to_string(), Symbol::Item(Item::symbol(sym)));
+        }
         if let Some(symbol) = self.symbols.get(sym) {
             Ok(symbol)
         } else {
-            Err(with_caller!(self.runtime_error(format!("undefined symbol: {:#?}", sym), None)))
+            Err(with_caller!(runtime_error(format!("undefined symbol: {:#?}", sym), None)))
         }
     }
 
@@ -105,12 +128,12 @@ impl<'c> Closure<'c> {
         sym: &str,
         list: VecDeque<Item<'c>>,
     ) -> Result<Value<'c>> {
-        // let mut function: Fn(&'c mut Closure<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>> =
+        // let mut function: Fn(&'c mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>> =
         let mut function = try_result!(self.get_symbol_function(sym));
         let mut closure = &mut self.clone();
         let result = function(closure, list);
         // let result = function.call(
-        //     unsafe { std::mem::transmute::<&mut Closure<'c>, &'c mut Closure<'c>>(&mut closure) },
+        //     unsafe { std::mem::transmute::<&mut VirtualMachine<'c>, &'c mut VirtualMachine<'c>>(&mut closure) },
         //     list,
         // );
         // if closure.symbols() != self.symbols() {
@@ -118,7 +141,7 @@ impl<'c> Closure<'c> {
         // }
         match result {
             Ok(item) => Ok(self.eval_ast(item)?),
-            Err(error) => Err(self.runtime_error(
+            Err(error) => Err(runtime_error(
                 format!("Failed to evaluate function {:#?}", sym),
                 Some(with_caller!(error)),
             )),
@@ -143,57 +166,70 @@ impl<'c> Closure<'c> {
         }
     }
 
+    pub fn setq(&mut self, sym: String, item: Item<'c>) -> Option<Symbol<'c>> {
+        dbg!("setq", &item);
+        let previous = self.symbols.insert(sym, Symbol::Item(item));
+        dbg!("setq", &self.symbols);
+        previous
+    }
+
+    pub fn eval_list(&mut self, mut list: VecDeque<Item<'c>>) -> Result<Value<'c>> {
+        dbg!(&list);
+        if list.is_empty() {
+            Ok(Value::Nil)
+        } else {
+            if let Some(Item::Symbol(sym)) = list.front() {
+                Ok(try_result!(
+                    self.eval_symbol_function(sym, list.range(1..).map(Clone::clone).collect())
+                ))
+            } else {
+                Ok(Value::String(Cow::from(format!("{:#?}", list))))
+            }
+        }
+    }
+
     pub fn eval_symbol(&mut self, sym: &str) -> Result<Value<'c>> {
         let symbol = try_result!(self.get_symbol(sym));
+        dbg!(&sym, &symbol);
         match symbol {
             Symbol::Item(item) => match item {
                 Item::Value(value) => Ok(value.clone()),
                 Item::List(list) => {
+                    dbg!(&list);
                     let debug = format!("{:#?}", list);
                     Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },
-                Item::Symbol(item_sym) =>
-                    if sym != *item_sym {
-                        Err(with_caller!(self.runtime_error(
-                            format!("when evaluating {:#?}: {} != {}", sym, sym, item_sym),
-                            None
-                        )))
-                    } else {
-                        Ok(Value::String(Cow::from(sym.to_string())))
-                    },
+                Item::Symbol(item_sym) => {
+                    dbg!(&item_sym);
+                    let debug = format!("{:#?}", item_sym);
+                    Ok(Value::String(Cow::from(debug.as_str().to_string())))
+                },
+                // if sym != *item_sym {
+                //     Err(with_caller!(runtime_error(
+                //         format!("when evaluating {:#?}: {} != {}", sym, sym, item_sym),
+                //         None
+                //     )))
+                // } else {
+                //     let symbol = try_result!(self.get_symbol(sym));
+                //     dbg!(&symbol);
+                //     match symbol {
+                //         Symbol::Item(Item::Value(value)) => Ok(value.clone()),
+                //         Symbol::Item(Item::Symbol(sym)) => {
+                //             dbg!(&sym);
+                //             Ok(try_result!(self.eval_symbol(sym)))
+                //         },
+                //         Symbol::Item(Item::List(list)) => {
+                //             dbg!(&list);
+                //             let debug = format!("{:#?}", list);
+                //             Ok(Value::String(Cow::from(debug.as_str().to_string())))
+                //         },
+                //         Symbol::BuiltinFunction(sym, _) =>
+                //             Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),
+                //     }
+                // },
             },
             Symbol::BuiltinFunction(sym, _) =>
                 Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),
         }
-    }
-}
-#[derive(Debug, Clone, Default)]
-pub struct VirtualMachine<'c> {
-    symbols: BTreeMap<String, Symbol<'c>>,
-    stack: VecDeque<Closure<'c>>,
-}
-
-impl<'c> VirtualMachine<'c> {
-    pub fn new() -> VirtualMachine<'c> {
-        let mut vm = VirtualMachine::<'c>::default();
-        vm.register_builtin_function("+", builtin::math::arithmetic::add);
-        vm.register_builtin_function("-", builtin::math::arithmetic::sub);
-        vm.register_builtin_function("*", builtin::math::arithmetic::mul);
-        vm.register_builtin_function("/", builtin::math::arithmetic::div);
-        vm.register_builtin_function("print", builtin::string::print);
-        vm
-    }
-
-    pub fn register_builtin_function(&mut self, sym: &'c str, function: BuiltinFunction) {
-        self.symbols.insert(sym.to_string(), Symbol::<'c>::BuiltinFunction(Cow::from(sym.to_string()), function));
-    }
-
-    pub fn eval_ast(&mut self, mut item: Item<'c>) -> Result<Value<'c>> {
-        let mut closure = self.create_closure();
-        Ok(try_result!(closure.eval_ast(item)))
-    }
-
-    pub fn create_closure(&self) -> Closure<'c> {
-        Closure::new(self.symbols.clone())
     }
 }

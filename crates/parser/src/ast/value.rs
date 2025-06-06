@@ -179,7 +179,7 @@ impl<'a> Display for Value<'a> {
             match self {
                 Value::Float(value) => value.to_string(),
                 Value::Integer(value) => value.to_string(),
-                Value::String(value) => format!("{:#?}", value),
+                Value::String(value) => format!("{}", value),
                 Value::UnsignedInteger(value) => value.to_string(),
                 Value::Nil => "nil".to_string(),
                 Value::T => "t".to_string(),

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
 use minilisp_parser::{Item, Value};
 use minilisp_util::{dbg, try_result};
 
-use crate::{with_caller, Closure, Error, ErrorType, Result, VirtualMachine};
+use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn unpack_unsigned_integer_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<u64>> {
     let mut items = VecDeque::<u64>::new();
@@ -78,4 +78,8 @@ pub fn unpack_float_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<f64>>
             errors.front().map(Clone::clone)
         )))
     }
+}
+
+pub fn runtime_error(message: String, previous: Option<Error>) -> Error {
+    with_caller!(Error::with_previous_error(message, ErrorType::RuntimeError, previous))
 }

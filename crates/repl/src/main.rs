@@ -14,10 +14,21 @@ fn main() -> Result<()> {
     print!("\x1b[2J\x1b[3J\x1b[H");
     println!("minilisp VM version {}", env!("CARGO_PKG_VERSION"));
     let mut rl = DefaultEditor::new()?;
+
+   if rl.load_history(".minilisp.history").is_err() {
+        println!("No previous history.");
+    }
     loop {
         let readline = rl.readline(": ");
         match readline {
             Ok(line) => {
+                match line.as_str() {
+                    "@" => {
+                        println!("{:#?}", vm.symbols());
+                        continue
+                    }
+                    _ => {}
+                }
                 match parse_source(&line) {
                     Ok(ast) => {
                         match vm.eval_ast(match ast.len() {
@@ -26,7 +37,7 @@ fn main() -> Result<()> {
                             _ => Item::List(ast),
                         }) {
                             Ok(value) => {
-                                println!("{}", value);
+                                println!("{:#?}", value);
                             },
                             Err(error) => print_error(error),
                         }
@@ -48,5 +59,6 @@ fn main() -> Result<()> {
             },
         }
     }
+    rl.save_history(".minilisp.history")?;
     Ok(())
 }

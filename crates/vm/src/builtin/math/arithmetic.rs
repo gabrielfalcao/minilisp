@@ -5,12 +5,13 @@ use minilisp_util::{dbg, try_result};
 
 use crate::helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
 use crate::{
-    impl_arithmetic_operation, with_caller, Closure, Error, ErrorType, Result, VirtualMachine,
+    impl_arithmetic_operation, runtime_error, with_caller, Error, ErrorType, Result,
+    VirtualMachine,
 };
 
 impl_arithmetic_operation!(+ add);
-impl_arithmetic_operation!(- sub);
-impl_arithmetic_operation!(* mul);
+impl_arithmetic_operation!(-sub);
+impl_arithmetic_operation!(*mul);
 impl_arithmetic_operation!(/ div);
 
 #[macro_export]
@@ -20,12 +21,12 @@ macro_rules! impl_arithmetic_operation {
             $function_name:ident
     ) => {
         pub fn $function_name<'c>(
-            closure: &mut Closure<'c>,
+            closure: &mut VirtualMachine<'c>,
             list: VecDeque<Item<'c>>,
         ) -> Result<Item<'c>> {
             let argcount = list.len();
             if argcount < 2 {
-                return Err(with_caller!(closure.runtime_error(
+                return Err(with_caller!(runtime_error(
                     format!(
                         "{:#?} takes at least 2 arguments, got: {}",
                         stringify!($operator),
@@ -75,7 +76,7 @@ macro_rules! impl_arithmetic_operation {
                 Some(Item::Symbol(sym)) => {
                     todo!("evaluate symbol: {:#?}", sym);
                 },
-                Some(item) => Err(with_caller!(closure.runtime_error(
+                Some(item) => Err(with_caller!(runtime_error(
                     format!(
                         "{:#?} called with non-numerical value: {:#?}",
                         stringify!($operator),
