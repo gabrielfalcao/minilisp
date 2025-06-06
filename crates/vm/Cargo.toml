@@ -1,0 +1,41 @@
+[package]
+name = "minilisp-vm"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+autoexamples = false
+autobenches = false
+autotests = false
+
+[dependencies]
+minilisp-util = { workspace = true }
+minilisp-parser = { workspace = true }
+minilisp-formatter = { workspace = true }
+iocore = { workspace = true }
+
+[features]
+debug = []
+
+[dev-dependencies]
+k9 = { workspace = true }
+
+[package.metadata]
+cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
+
+
+[[test]]
+name = "test_math"
+path = "./tests/test_math.rs"
+
+[[test]]
+name = "test_string"
+path = "./tests/test_string.rs"

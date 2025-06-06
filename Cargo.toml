@@ -1,10 +1,12 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/parser",
-    "crates/formatter",
-    "crates/data-structures",
     "crates/util",
+    "crates/formatter",
+    "crates/parser",
+    "crates/repl",
+    "crates/vm",
+    "crates/data-structures",
 ]
 
 
@@ -35,8 +37,10 @@ serde = { version = "1.0.219", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 syntect = "5.2.0"
 minilisp = { path = "crates/lang" }
-minilisp-formatter = { path = "crates/formatter" }
-minilisp-data-structures = { path = "crates/data-structures" }
 minilisp-util = { path = "crates/util" }
+minilisp-formatter = { path = "crates/formatter" }
 minilisp-parser = { path = "crates/parser" }
+minilisp-repl = { path = "crates/repl" }
+minilisp-vm = { path = "crates/vm" }
+minilisp-data-structures = { path = "crates/data-structures" }
 k9 = "0.12.0"

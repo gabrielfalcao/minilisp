@@ -11,10 +11,7 @@ macro_rules! location {
         location
     }};
     (begin) => {
-        $crate::tag!(minilisp_util::color::fg(
-            format!("in function {}", $crate::location!()),
-            178
-        ))
+        $crate::tag!(minilisp_util::color::fg(format!("in function {}", $crate::location!()), 178))
     };
     (end) => {
         $crate::tag!(
@@ -49,11 +46,16 @@ macro_rules! filename {
         } else {
             (
                 Vec::<String>::new(),
-                minilisp_util::color::fg(parts[0].to_string(), $file_color)
+                minilisp_util::color::fg(parts[0].to_string(), $file_color),
             )
         };
         if folder.len() > 1 {
-            format!("{}{}{}", filename, minilisp_util::color::fg(" in ", 7), folder.join(std::path::MAIN_SEPARATOR_STR))
+            format!(
+                "{}{}{}",
+                filename,
+                minilisp_util::color::fg(" in ", 7),
+                folder.join(std::path::MAIN_SEPARATOR_STR)
+            )
         } else {
             filename
         }
@@ -154,17 +156,15 @@ macro_rules! with_caller {
 
 #[macro_export]
 macro_rules! map_call_to_result {
-    ($result:expr) => {{
-        use minilisp_util::Traceback;
+    ($result:expr) => {
         $result.map_err(|error| $crate::with_caller!(crate::Error::from(error)))
-    }};
+    };
 }
 #[macro_export]
 macro_rules! try_result {
-    ($result:expr) => {{
-        use minilisp_util::Traceback;
-        $crate::map_call_to_result!($result)?
-    }};
+    ($result:expr) => {
+        minilisp_util::map_call_to_result!($result)?
+    };
 }
 
 #[macro_export]
@@ -183,16 +183,27 @@ macro_rules! impl_error {
             message: String,
             ty: $type,
             callers: Vec<minilisp_util::Caller>,
+            previous: Option<Box<Error>>,
         }
         impl Error {
             pub fn new<T: std::fmt::Display>(message: T, ty: $type) -> Self {
+                Self::with_previous_error(message, ty, None)
+            }
+
+            pub fn with_previous_error<T: std::fmt::Display>(
+                message: T,
+                ty: $type,
+                previous: Option<Error>,
+            ) -> Self {
                 let message = message.to_string();
                 Error {
                     message,
                     ty,
                     callers: Vec::new(),
+                    previous: previous.map(Box::new),
                 }
             }
+
         }
         impl std::error::Error for $name {}
 
@@ -209,6 +220,14 @@ macro_rules! impl_error {
                 let mut error = self.clone();
                 error.callers.insert(0, caller);
                 error
+            }
+
+            fn previous_as_debug(&self) -> String {
+                self.previous.clone().map(|error| format!("{:#?}", error)).unwrap_or_default()
+            }
+
+            fn previous_as_string(&self) -> String {
+                self.previous.clone().map(|error| format!("{}", error)).unwrap_or_default()
             }
         }
         impl std::fmt::Display for Error {
@@ -229,7 +248,15 @@ macro_rules! impl_error {
                         format!("{} in source:\n{}", ty, source)
                     },
                     if self.callers.len() > 0 {
-                        format!("\n\nStacktrace:\n{}\n", self.callers_to_string(4))
+                        format!(
+                            "\n\nStacktrace:\n{}\n",
+                            [self.previous_as_debug(), self.callers_to_string(4)]
+                                .iter()
+                                .filter(|s| !s.trim().is_empty())
+                                .map(String::from)
+                                .collect::<Vec<String>>()
+                                .join("\n")
+                        )
                     } else {
                         String::new()
                     }
@@ -239,17 +266,16 @@ macro_rules! impl_error {
         pub type Result<T> = std::result::Result<T, Error>;
         #[macro_export]
         macro_rules! try_result {
-            ($result: expr) => {{
-                use minilisp_util::Traceback;
+            ($result: expr) => {
                 $crate::map_call_to_result!($result)?
-            }};
+            };
         }
         #[macro_export]
         macro_rules! map_call_to_result {
-            ($result: expr) => {{
+            ($result: expr) => {
                 use minilisp_util::Traceback;
                 $result.map_err(|error| minilisp_util::with_caller!(crate::Error::from(error)))
-            }};
+            };
         }
     };
 }
@@ -258,8 +284,14 @@ macro_rules! impl_error {
 macro_rules! string_to_str {
     ($ref:expr, $lifetime:lifetime) => {
         unsafe {
-            std::mem::transmute::<&str, &$lifetime str>($ref)
+            std::mem::transmute_copy::<&str, &$lifetime str>($ref)
         }
+    };
+}
+#[macro_export]
+macro_rules! format_to_str {
+    (&$lifetime:lifetime $text:literal, $( $arg:expr ),* $(,)? ) => {
+        $crate::string_to_str!(&format!($text, $($arg,)*).as_str(), $lifetime)
     };
 }
 
@@ -267,7 +299,17 @@ macro_rules! string_to_str {
 macro_rules! extend_lifetime {
     (&$lifetime:lifetime $name:ty, $ref:expr) => {
         unsafe {
-            std::mem::transmute::<&$name, &$lifetime $name>($ref)
+            std::mem::transmute_copy::<&$name, &$lifetime $name>(&$ref)
         }
     };
+}
+
+#[macro_export]
+macro_rules! vec_deque {
+    ($( $arg:expr ),* $(,)? ) => {{
+        let mut deque = std::collections::VecDeque::new();
+        $(deque.push_back($arg);
+        )*
+        deque
+    }};
 }

@@ -15,19 +15,17 @@ backquote               = @{ "`" }
 comma                   = @{ "," }
 close_paren             = @{ ")" }
 
-quoted_paren            = _{ quote ~ open_paren }
-
-nonsymbol               = ${ open_paren | quote | backquote | comma | close_paren | double_quote | WHITESPACE }
+nonsymbol               = { open_paren | quote | backquote | comma | close_paren | double_quote | WHITESPACE }
 
 statement               = { item+ }
-item                    = { value | quoted_list | symbol_list | symbol | list }
+item                    = { (value | symbol) | list}
 
 value                   = { (t | nil | float | unsigned | integer | double_quoted_string) }
 symbol                  = @{ (!(nonsymbol | integer) ~ ANY)+ }
 
-list                    = { open_paren ~ (value | symbol)* ~ close_paren }
+defun                   = { open_paren ~ "defun" ~ symbol_list ~ item* }
+list                    = { quote? ~ open_paren ~ item* ~ close_paren }
 symbol_list             = { open_paren ~ symbol* ~ close_paren }
-quoted_list             = { quoted_paren ~ (value | symbol)* ~ close_paren }
 
 delimiter               = _{ NEWLINE+ }
 WHITESPACE              = _{ " " | "\t" | "\n" }

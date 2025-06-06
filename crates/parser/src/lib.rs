@@ -4,7 +4,7 @@ pub mod errors;
 pub use errors::{Caller, Error, Result};
 pub mod ast;
 pub mod test;
-
+use std::collections::VecDeque;
 pub use ast::{
     format_position,
     format_rule,
@@ -27,7 +27,7 @@ pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 #[derive(Parser, Debug, Clone)]
 #[grammar = "src/grammar.pest"]
 pub struct MinilispSource;
-pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<Item<'a>>> {
+pub fn parse_source<'a>(input: &str) -> Result<'a, VecDeque<Item<'a>>> {
     let source_info = Source {
         source: Cow::from(input),
         filename: None,
@@ -40,10 +40,9 @@ pub fn parse_source<'a>(input: &str) -> Result<'a, Vec<Item<'a>>> {
         )
     })?;
     let mut file = pairs.next().unwrap();
-    let mut statement = file.into_inner().next().unwrap();
-    let items = statement
-        .into_inner()
+    let mut items = file
+        .into_inner().next().unwrap().into_inner()
         .map(|mut pair| Item::from_pair(&mut pair))
-        .collect::<Vec<Item<'a>>>();
+        .collect::<VecDeque<Item<'a>>>();
     Ok(items)
 }

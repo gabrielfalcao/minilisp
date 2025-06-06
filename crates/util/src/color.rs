@@ -15,6 +15,9 @@ pub fn bgfg<T: std::fmt::Display>(text: T, fore: usize, back: usize) -> String {
 pub fn ansi<T: std::fmt::Display>(text: T, fore: usize, back: usize) -> String {
     reset(bgfg(text, fore as usize, back as usize))
 }
+pub fn ansi_clear() -> String {
+    "\x1b[2J\x1b[3J\x1b[H".to_string()
+}
 pub fn fore<T: std::fmt::Display>(text: T, fore: usize) -> String {
     let (fore, back) = couple(fore);
     ansi(text, fore as usize, back as usize)

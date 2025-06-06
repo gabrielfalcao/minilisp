@@ -22,4 +22,10 @@ pub trait Traceback: std::error::Error {
     fn highlight_message(&self) -> String {
         format!("{}", self.message())
     }
+    fn previous_as_debug(&self) -> String {
+        String::new()
+    }
+    fn previous_as_string(&self) -> String {
+        String::new()
+    }
 }
