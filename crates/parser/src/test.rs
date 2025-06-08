@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 
-use minilisp_util::{extend_lifetime};
-
-use crate::{Span, SpanPosition, Source};
+use crate::{Source, Span, SpanPosition};
 
 pub fn stub_span_info<'a>(
     input: &'a str,
@@ -10,13 +8,10 @@ pub fn stub_span_info<'a>(
     end_pos: (usize, usize),
 ) -> Span<'a> {
     let span_info = Span {
-        source: extend_lifetime!(
-            &'a Source,
-            &Source {
-                source: Cow::from(input),
-                filename: None,
-            }
-        ),
+        source: Source {
+            source: Cow::from(input),
+            filename: None,
+        },
         name: None,
         input: Cow::from(input),
         start_pos: SpanPosition::from_tuple(start_pos),

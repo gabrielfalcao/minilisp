@@ -2,8 +2,8 @@ use std::borrow::Cow;
 pub mod errors;
 pub use errors::{Caller, Error, Result};
 pub mod ast;
-pub mod test;
 pub mod macros;
+pub mod test;
 use std::collections::VecDeque;
 
 use pest::iterators::Pair;
@@ -16,7 +16,6 @@ pub use ast::{
     Node,
     Value,
 };
-use minilisp_util::extend_lifetime;
 use pest::Parser;
 use pest_derive::Parser;
 pub use source::{Source, Span, SpanPosition};
@@ -33,10 +32,7 @@ pub fn parse_source<'a>(input: &'a str) -> Result<'a, VecDeque<Node<'a>>> {
     };
     let source = source_info.clone();
     let mut pairs = MinilispSource::parse(Rule::file, input).map_err(|e| {
-        Error::new(
-            e.variant.message().to_string(),
-            Some(Span::from_error(e, extend_lifetime!(&'a Source, &source_info))),
-        )
+        Error::new(e.variant.message().to_string(), Some(Span::from_error(e, source_info.clone())))
     })?;
     let file = pairs.next().unwrap();
     let nodes = file
@@ -44,12 +40,7 @@ pub fn parse_source<'a>(input: &'a str) -> Result<'a, VecDeque<Node<'a>>> {
         .next()
         .unwrap()
         .into_inner()
-        .map(|pair| {
-            Node::from_pair(
-                extend_lifetime!(&'a Pair<Rule>, &pair),
-                extend_lifetime!(&'a Source, &source),
-            )
-        })
+        .map(|pair| Node::from_pair(pair.clone(), source.clone()))
         .collect::<VecDeque<Node<'a>>>();
     Ok(nodes)
 }

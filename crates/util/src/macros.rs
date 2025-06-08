@@ -287,14 +287,6 @@ macro_rules! format_to_str {
     };
 }
 
-#[macro_export]
-macro_rules! extend_lifetime {
-    (&$lifetime:lifetime $name:ty, $ref:expr) => {
-        unsafe {
-            std::mem::transmute_copy::<&$name, &$lifetime $name>(&$ref)
-        }
-    };
-}
 
 #[macro_export]
 macro_rules! vec_deque {

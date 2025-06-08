@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use minilisp_util::{extend_lifetime, unexpected};
+use minilisp_util::unexpected;
 use pest::iterators::Pair;
 
 use crate::Rule;
@@ -18,6 +18,24 @@ pub enum Value<'a> {
     T,
     #[default]
     Nil,
+}
+
+impl<'a> Value<'a> {
+    pub fn from_pair(pair: Pair<Rule>) -> Value<'a> {
+        match pair.as_rule() {
+            Rule::float => Value::Float(f64::from_str(pair.as_span().as_str()).expect("float")),
+            Rule::integer =>
+                Value::Integer(i64::from_str(pair.as_span().as_str()).expect("integer")),
+            Rule::string => Value::String(Cow::from(pair.as_span().as_str().to_string())),
+            Rule::t => Value::T,
+            Rule::unsigned => Value::UnsignedInteger(
+                u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
+            ),
+            Rule::value => Value::from_pair(pair),
+            Rule::nil => Value::Nil,
+            _ => unexpected!(pair),
+        }
+    }
 }
 
 impl<'a> Value<'a> {
@@ -106,23 +124,6 @@ impl<'a> Value<'a> {
             value
         } else {
             panic!("{:#?} is not a str", self);
-        }
-    }
-}
-impl<'a> Value<'a> {
-    pub fn from_pair(pair: &'a Pair<Rule>) -> Value<'a> {
-        match pair.as_rule() {
-            Rule::float => Value::Float(f64::from_str(pair.as_span().as_str()).expect("float")),
-            Rule::integer =>
-                Value::Integer(i64::from_str(pair.as_span().as_str()).expect("integer")),
-            Rule::string => Value::String(Cow::from(pair.as_span().as_str().to_string())),
-            Rule::t => Value::T,
-            Rule::unsigned => Value::UnsignedInteger(
-                u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
-            ),
-            Rule::value => Value::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair)),
-            Rule::nil => Value::Nil,
-            _ => unexpected!(pair),
         }
     }
 }

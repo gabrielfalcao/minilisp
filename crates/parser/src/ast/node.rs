@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
 
-use minilisp_util::{extend_lifetime, unexpected};
+use minilisp_util::unexpected;
 use pest::iterators::Pair;
 
 use crate::{Item, Rule, Source, Span, Value};
@@ -16,21 +16,22 @@ pub enum Node<'a> {
 impl<'a> Node<'a> {
     pub fn as_item<'c>(&self) -> Item<'a> {
         match self {
-            Node::List(_span, sexpr) => Item::List(sexpr.iter().map(|node| node.as_item()).collect()),
+            Node::List(_span, sexpr) =>
+                Item::List(sexpr.iter().map(|node| node.as_item()).collect()),
             Node::Symbol(_span, symbol) => Item::Symbol(symbol.clone()),
             Node::Value(_span, value) => Item::Value(value.clone()),
         }
     }
 }
 impl<'a> Node<'a> {
-    pub fn from_pair(pair: &'a Pair<'a, Rule>, source: &'a Source) -> Node<'a> {
-        let span = Span::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair), extend_lifetime!(&'a Source, &source));
+    pub fn from_pair(pair: Pair<'a, Rule>, source: Source<'a>) -> Node<'a> {
+        let span = Span::from_pair(pair.clone(), source.clone());
         match pair.as_rule() {
-            Rule::value => Node::Value(span.clone(), Value::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair))),
+            Rule::value => Node::Value(span.clone(), Value::from_pair(pair)),
             Rule::symbol => Node::Symbol(span.clone(), Cow::from(span.input().to_string())),
             Rule::item => {
                 let pair = pair.clone().into_inner().next().expect("item");
-                Node::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair), extend_lifetime!(&'a Source, &source))
+                Node::from_pair(pair.clone(), source.clone())
             },
             Rule::sexpr => {
                 let mut items = VecDeque::<Node<'a>>::new();
@@ -48,7 +49,7 @@ impl<'a> Node<'a> {
                         },
                         Rule::open_paren => continue,
                         Rule::value | Rule::symbol | Rule::item => {
-                            items.push_back(Node::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair), extend_lifetime!(&'a Source, &source)));
+                            items.push_back(Node::from_pair(pair.clone(), source.clone()));
                             continue;
                         },
                         _ => {

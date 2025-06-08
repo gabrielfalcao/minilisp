@@ -1,6 +1,6 @@
 use std::borrow::{Borrow, Cow};
 
-use minilisp_util::extend_lifetime;
+
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 
@@ -12,11 +12,11 @@ pub struct Span<'a> {
     pub name: Option<String>,
     pub start_pos: SpanPosition,
     pub end_pos: SpanPosition,
-    pub source: &'a Source<'a>,
+    pub source: Source<'a>,
     pub inner: Option<Vec<Span<'a>>>,
 }
 impl<'a> Span<'a> {
-    pub fn from_pair(pair: &'a Pair<Rule>, source: &'a Source) -> Span<'a> {
+    pub fn from_pair(pair: Pair<'a, Rule>, source: Source<'a>) -> Span<'a> {
         let span = pair.as_span();
         let start_pos = SpanPosition::from_pest(span.start_pos());
         let end_pos = SpanPosition::from_pest(span.end_pos());
@@ -24,10 +24,9 @@ impl<'a> Span<'a> {
         Span {
             input: Cow::from(span.as_str()),
             name: Some(format!("{:#?}", pair.as_rule())),
-            // string: Cow::from(&pair.to_string()),
             start_pos,
             end_pos,
-            source: extend_lifetime!(&'a Source, &source.clone()),
+            source: source.clone(),
             inner: {
                 let inner = pair.clone().into_inner();
                 if inner.peek().is_none() {
@@ -37,8 +36,8 @@ impl<'a> Span<'a> {
                         inner
                             .map(|pair| {
                                 Span::from_pair(
-                                    extend_lifetime!(&'a Pair<Rule>, &pair),
-                                    extend_lifetime!(&'a Source, &source.clone()),
+                                    pair.clone(),
+                                    source.clone(),
                                 )
                             })
                             .collect(),
@@ -48,7 +47,7 @@ impl<'a> Span<'a> {
         }
     }
 
-    pub fn from_error(error: pest::error::Error<Rule>, source: &'a Source<'a>) -> Span<'a> {
+    pub fn from_error(error: pest::error::Error<Rule>, source: Source<'a>) -> Span<'a> {
         let (start_pos, end_pos) = match error.line_col.clone() {
             LineColLocation::Pos(line_col) => (
                 SpanPosition::from_tuple(line_col.clone()),
@@ -62,7 +61,7 @@ impl<'a> Span<'a> {
             name: None,
             start_pos,
             end_pos,
-            source: extend_lifetime!(&'a Source, &source),
+            source: source,
             inner: None,
         }
     }
