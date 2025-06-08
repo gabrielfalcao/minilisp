@@ -5,8 +5,8 @@ use minilisp_util::{dbg, try_result};
 
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
-pub fn unpack_unsigned_integer_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<u64>> {
-    let mut items = VecDeque::<u64>::new();
+pub fn unpack_unsigned_integer_items<'c>(vm: &mut VirtualMachine, list: VecDeque<Item<'c>>) -> Result<VecDeque<u32>> {
+    let mut items = VecDeque::<u32>::new();
     let mut errors = VecDeque::<Error>::new();
     for (index, item) in list.into_iter().enumerate() {
         if let Item::Value(Value::UnsignedInteger(value)) = item {
@@ -30,10 +30,21 @@ pub fn unpack_unsigned_integer_items<'c>(list: VecDeque<Item<'c>>) -> Result<Vec
     }
 }
 
-pub fn unpack_integer_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<i64>> {
+pub fn unpack_integer_items<'c>(vm: &mut VirtualMachine, list: VecDeque<Item<'c>>) -> Result<VecDeque<i64>> {
     let mut items = VecDeque::<i64>::new();
     let mut errors = VecDeque::<Error>::new();
     for (index, item) in list.into_iter().enumerate() {
+        match item {
+            Item::Value(Value::Integer(value)) => {
+                items.push_back(value);
+            },
+            Item::Value(Value::Integer(value)) => {
+                items.push_back(value);
+            },
+            _ => {
+                todo!()
+            }
+        }
         if let Item::Value(Value::Integer(value)) = item {
             items.push_back(value);
         } else {
@@ -55,7 +66,7 @@ pub fn unpack_integer_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<i64
     }
 }
 
-pub fn unpack_float_items<'c>(list: VecDeque<Item<'c>>) -> Result<VecDeque<f64>> {
+pub fn unpack_float_items<'c>(vm: &mut VirtualMachine, list: VecDeque<Item<'c>>) -> Result<VecDeque<f64>> {
     let mut items = VecDeque::<f64>::new();
     let mut errors = VecDeque::<Error>::new();
     for (index, item) in list.into_iter().enumerate() {

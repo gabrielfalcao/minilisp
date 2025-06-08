@@ -21,7 +21,7 @@ macro_rules! impl_arithmetic_operation {
             $function_name:ident
     ) => {
         pub fn $function_name<'c>(
-            closure: &mut VirtualMachine<'c>,
+            vm: &mut VirtualMachine<'c>,
             list: VecDeque<Item<'c>>,
         ) -> Result<Item<'c>> {
             let argcount = list.len();
@@ -38,7 +38,7 @@ macro_rules! impl_arithmetic_operation {
             match list.front() {
                 Some(Item::Value(Value::UnsignedInteger(first_operand))) => {
                     let mut operands =
-                        try_result!(unpack_unsigned_integer_items(list).map_err(|error| {
+                        try_result!(unpack_unsigned_integer_items(vm, list).map_err(|error| {
                             Error::with_previous_error(
                                 format!("call to {:#?} function", stringify!($operator)),
                                 ErrorType::RuntimeError,
@@ -50,7 +50,7 @@ macro_rules! impl_arithmetic_operation {
                     Ok(Item::Value(Value::UnsignedInteger(operands.into_iter().fold(first, |lhs, rhs| lhs $operator rhs))))
                 },
                 Some(Item::Value(Value::Integer(first_operand))) => {
-                    let mut operands = try_result!(unpack_integer_items(list).map_err(|error| {
+                    let mut operands = try_result!(unpack_integer_items(vm, list).map_err(|error| {
                         Error::with_previous_error(
                             format!("call to {:#?} function", stringify!($operator)),
                             ErrorType::RuntimeError,
@@ -62,7 +62,7 @@ macro_rules! impl_arithmetic_operation {
 
                 },
                 Some(Item::Value(Value::Float(first_operand))) => {
-                    let mut operands = try_result!(unpack_float_items(list).map_err(|error| {
+                    let mut operands = try_result!(unpack_float_items(vm, list).map_err(|error| {
                         Error::with_previous_error(
                             format!("call to {:#?} function", stringify!($operator)),
                             ErrorType::RuntimeError,

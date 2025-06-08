@@ -1,111 +1,33 @@
 use std::borrow::{Borrow, Cow};
 
-use minilisp_util::{
-    caller, dbg, extend_lifetime, try_result, unexpected, unwrap_result, with_caller,
-};
+use minilisp_util::extend_lifetime;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
-use pest::{Position, RuleType};
 
-use crate::{Error, NodePosition, Rule, Source};
+use crate::{Rule, Source, SpanPosition};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Node<'a> {
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Span<'a> {
     pub input: Cow<'a, str>,
     pub name: Option<String>,
-    pub start_pos: NodePosition,
-    pub end_pos: NodePosition,
+    pub start_pos: SpanPosition,
+    pub end_pos: SpanPosition,
     pub source: &'a Source<'a>,
-    pub inner: Option<Vec<Node<'a>>>,
+    pub inner: Option<Vec<Span<'a>>>,
 }
-impl<'a> std::fmt::Display for Node<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            [
-                self.input.to_string(),
-                if let Some(nodes) = &self.inner {
-                    format!(
-                        ", [{}]",
-                        nodes
-                            .iter()
-                            .map(|node| node.to_string())
-                            .collect::<Vec<String>>()
-                            .join(", ")
-                    )
-                } else {
-                    String::new()
-                }
-            ]
-            .join("")
-            .trim()
-        )
-    }
-}
-impl<'a> std::fmt::Debug for Node<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            [
-                self.name.clone().map(String::from).unwrap_or_else(|| "Node".to_string()),
-                " {".to_string(),
-                [
-                    format!("input: '{}'", self.input),
-                    if let Some(nodes) = &self.inner {
-                        format!("nodes: {:#?}", &nodes)
-                    } else {
-                        String::new()
-                    }
-                ]
-                .iter()
-                .filter(|string| string.len() > 0)
-                .map(String::from)
-                .collect::<Vec<String>>()
-                .join(", "),
-                "}".to_string(),
-            ]
-            .join("")
-        )
-    }
-}
-
-impl<'a> Node<'a> {
-    pub fn input(&'a self) -> &'a str {
-        self.input.borrow()
-    }
-
-    pub fn inner(&self) -> Vec<Node<'a>> {
-        if let Some(nodes) = &self.inner {
-            nodes.clone()
-        } else {
-            Vec::new()
-        }
-    }
-
-    pub fn filename(&self) -> Option<String> {
-        self.source.filename()
-    }
-
-    pub fn with_input(&self, input: &'a str) -> Node<'a> {
-        let mut info = self.clone();
-        info.input = Cow::from(input);
-        info
-    }
-
-    pub fn from_pair(pair: &'a Pair<Rule>, source: &'a Source) -> Node<'a> {
+impl<'a> Span<'a> {
+    pub fn from_pair(pair: &'a Pair<Rule>, source: &'a Source) -> Span<'a> {
         let span = pair.as_span();
-        let start_pos = NodePosition::from_pest(span.start_pos());
-        let end_pos = NodePosition::from_pest(span.end_pos());
+        let start_pos = SpanPosition::from_pest(span.start_pos());
+        let end_pos = SpanPosition::from_pest(span.end_pos());
 
-        Node {
+        Span {
             input: Cow::from(span.as_str()),
             name: Some(format!("{:#?}", pair.as_rule())),
             // string: Cow::from(&pair.to_string()),
             start_pos,
             end_pos,
-            source,
+            source: extend_lifetime!(&'a Source, &source.clone()),
             inner: {
                 let inner = pair.clone().into_inner();
                 if inner.peek().is_none() {
@@ -114,9 +36,9 @@ impl<'a> Node<'a> {
                     Some(
                         inner
                             .map(|pair| {
-                                Node::from_pair(
+                                Span::from_pair(
                                     extend_lifetime!(&'a Pair<Rule>, &pair),
-                                    extend_lifetime!(&'a Source, source),
+                                    extend_lifetime!(&'a Source, &source.clone()),
                                 )
                             })
                             .collect(),
@@ -126,26 +48,48 @@ impl<'a> Node<'a> {
         }
     }
 
-    pub fn from_error(error: pest::error::Error<Rule>, source: &'a Source<'a>) -> Node<'a> {
+    pub fn from_error(error: pest::error::Error<Rule>, source: &'a Source<'a>) -> Span<'a> {
         let (start_pos, end_pos) = match error.line_col.clone() {
             LineColLocation::Pos(line_col) => (
-                NodePosition::from_tuple(line_col.clone()),
-                NodePosition::from_tuple(line_col.clone()),
+                SpanPosition::from_tuple(line_col.clone()),
+                SpanPosition::from_tuple(line_col.clone()),
             ),
             LineColLocation::Span(start_pos, end_pos) =>
-                (NodePosition::from_tuple(start_pos), NodePosition::from_tuple(end_pos)),
+                (SpanPosition::from_tuple(start_pos), SpanPosition::from_tuple(end_pos)),
         };
-        Node {
+        Span {
             input: Cow::from(error.line().to_string()),
             name: None,
             start_pos,
             end_pos,
-            source,
+            source: extend_lifetime!(&'a Source, &source),
             inner: None,
         }
     }
 
-    pub fn info(&self) -> Node<'a> {
+    pub fn input(&'a self) -> &'a str {
+        self.input.borrow()
+    }
+
+    pub fn inner(&self) -> Vec<Span<'a>> {
+        if let Some(spans) = &self.inner {
+            spans.clone()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn filename(&self) -> Option<String> {
+        self.source.filename()
+    }
+
+    pub fn with_input(&self, input: &'a str) -> Span<'a> {
+        let mut info = self.clone();
+        info.input = Cow::from(input);
+        info
+    }
+
+    pub fn info(&self) -> Span<'a> {
         self.clone()
     }
 
@@ -204,5 +148,58 @@ impl<'a> Node<'a> {
             })
             .collect::<Vec<String>>()
             .join("\n")
+    }
+}
+
+impl<'a> std::fmt::Display for Span<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            [
+                self.input.to_string(),
+                if let Some(spans) = &self.inner {
+                    format!(
+                        ", [{}]",
+                        spans
+                            .iter()
+                            .map(|span| span.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                } else {
+                    String::new()
+                }
+            ]
+            .join("")
+            .trim()
+        )
+    }
+}
+impl<'a> std::fmt::Debug for Span<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            [
+                self.name.clone().map(String::from).unwrap_or_else(|| "Span".to_string()),
+                " {".to_string(),
+                [
+                    format!("input: '{}'", self.input),
+                    if let Some(spans) = &self.inner {
+                        format!("spans: {:#?}", &spans)
+                    } else {
+                        String::new()
+                    }
+                ]
+                .iter()
+                .filter(|string| string.len() > 0)
+                .map(String::from)
+                .collect::<Vec<String>>()
+                .join(", "),
+                "}".to_string(),
+            ]
+            .join("")
+        )
     }
 }

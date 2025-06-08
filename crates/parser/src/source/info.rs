@@ -1,11 +1,8 @@
 use std::borrow::Cow;
 
-use pest::iterators::Pair;
-use pest::Position;
 
-use crate::{NodePosition, Rule};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Source<'a> {
     pub source: Cow<'a, str>,
     pub filename: Option<Cow<'a, str>>,

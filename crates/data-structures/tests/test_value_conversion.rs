@@ -1,39 +1,38 @@
 #![allow(unused)]
+use std::borrow::Cow;
 use minilisp_data_structures::*;
 use k9::assert_equal;
 
+
+#[macro_export]
+macro_rules! assert_value_conversion {
+    ($variant:ident, $from:expr , $convert:expr, $display:literal, $debug:literal) => {
+        assert_equal!(Value::from($from), Value::Symbol(Cow::from("static-str")));
+        assert_display_equal!(Value::from($from), $display);
+        assert_debug_equal!(Value::from($from), $debug);
+    };
+}
+
 #[test]
-fn value_from_static_str() {
-    let value = "static-str";
-    assert_equal!(Value::from(value).to_string(), "static-str");
-    let value = "static-str";
-    assert_display_equal!(Value::from(value), "static-str");
-    let value = "static-str";
-    assert_debug_equal!(Value::from(value), "\"static-str\"");
+fn value_symbol_conversion() {
+    assert_value_conversion!(Symbol, "static-str", Cow::from, "static-str", "\"static-str\"");
 }
 #[test]
-fn value_from_str() {
-    let value = "str".to_string().leak();
-    assert_equal!(Value::from(value).to_string(), "str");
-    let value = "str".to_string().leak();
-    assert_display_equal!(Value::from(value), "str");
-    let value = "str".to_string().leak();
-    assert_debug_equal!(Value::from(value), "\"str\"");
+fn value_symbol() {
+    assert_value_conversion!(Symbol, "static-str", Cow::from, "static-str", "\"static-str\"");
+    assert_equal!(Value::from("static-str"), Value::Symbol(Cow::from("static-str")));
+    assert_display_equal!(Value::from("static-str"), "static-str");
+    assert_debug_equal!(Value::from("static-str"), "\"static-str\"");
 }
 #[test]
-fn value_from_string() {
-    let value = "string".to_string();
-    assert_equal!(Value::from(value).to_string(), "string");
-    let value = "string".to_string();
-    assert_display_equal!(Value::from(value), "string");
-    let value = "string".to_string();
-    assert_debug_equal!(Value::from(value), "\"string\"");
+fn value_string() {
+    assert_equal!(Value::from("string".to_string()), Value::String(String::from("string")));
+    assert_display_equal!(Value::from("string".to_string()), "string");
+    assert_debug_equal!(Value::from("string".to_string()), "\"string\"");
 }
 #[test]
-fn value_display_nil() {
+fn value_nil() {
+    assert_equal!(Value::from(false), Value::T);
     assert_display_equal!(Value::Nil, "nil");
-}
-#[test]
-fn value_debug_nil() {
     assert_debug_equal!(Value::Nil, "nil");
 }

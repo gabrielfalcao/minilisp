@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, Cow, ToOwned};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::convert::AsRef;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -8,21 +9,31 @@ use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::ptr::NonNull;
 
-use crate::{car, cdr, color, cons, internal, step, Value};
+use crate::{car, cdr, color, cons, internal, step, Value, RefCounter};
 
 /// Rust implementation of lisp's cons cell.
 pub struct Cell<'c> {
     head: *mut Value<'c>,
     tail: *mut Cell<'c>,
-    refs: usize,
+    refs: RefCounter,
 }
 
+impl<'c> PartialOrd for Cell<'c> {
+    fn partial_cmp(&self, other: &Cell<'c>) -> Option<Ordering> {
+        self.values().partial_cmp(&other.values())
+    }
+}
+impl<'c> PartialEq for Cell<'c> {
+    fn eq(&self, other: &Cell<'c>) -> bool {
+        self.values().eq(&other.values())
+    }
+}
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
         Cell {
             head: internal::null::value(),
             tail: internal::null::cell(),
-            refs: 0,
+            refs: RefCounter::new(),
         }
     }
 
@@ -44,9 +55,10 @@ impl<'c> Cell<'c> {
         let value = if self.head.is_null() {
             None
         } else {
+            let head = internal::alloc::value();
             let value = unsafe {
-                let value = self.head.read();
-                value
+                self.head.copy_to(head);
+                head.read()
             };
             Some(value)
         };
@@ -131,6 +143,21 @@ impl<'c> Cell<'c> {
             }
         }
     }
+
+    // pub fn list(&self) -> List {
+    //     if self.is_nil() {
+    //         List::Empty
+    //     } else if self.head.is_null() {
+    //         self.tail().unwrap().list()
+    //     } else {
+    //         let car = self.head().unwrap();
+    //         if self.tail.is_null() {
+    //             List::Car(car)
+    //         } else {
+    //             List::Cons(car, self.tail().unwrap())
+    //         }
+    //     }
+    // }
 
     pub fn values(&self) -> Vec<Value<'c>> {
         let mut values = Vec::<Value>::new();
@@ -220,6 +247,7 @@ impl<'c> Default for Cell<'c> {
 impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
+        cell.refs = self.refs.clone();
         unsafe {
             if !self.head.is_null() {
                 let head = internal::alloc::value();
@@ -229,7 +257,6 @@ impl<'c> Clone for Cell<'c> {
             if !self.tail.is_null() {
                 let tail = internal::alloc::cell();
                 tail.write(self.tail.read());
-                cell.refs = self.refs;
                 cell.tail = tail;
             }
         }
@@ -238,12 +265,7 @@ impl<'c> Clone for Cell<'c> {
 }
 impl<'c> Drop for Cell<'c> {
     fn drop(&mut self) {
-        #[rustfmt::skip]#[cfg(feature="debug")]
-        eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("dropping ",196),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
-
         if self.refs > 0 {
-            #[rustfmt::skip]#[cfg(feature="debug")]
-            eprintln!("{}",color::reset(color::bgfg(format!("{}{}{}{}:{}",crate::color::fg("decrementing refs of ",220),crate::color::fg("cell",49),color::bgfg(format!("@"),231,16),color::ptr_inv(self),color::fore(format!("{:#?}",self),201)),197,16)));
             self.refs -= 1;
         } else {
             unsafe {
@@ -274,5 +296,21 @@ impl std::fmt::Debug for Cell<'_> {
                 color::ptr(self.tail)
             },
         )
+    }
+}
+
+impl std::fmt::Display for Cell<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", {
+            let values = self.values();
+            match values.len() {
+                0 => "nil".to_string(),
+                1 => values[0].to_string(),
+                _ => format!(
+                    "({})",
+                    values.iter().map(|value| value.to_string()).collect::<Vec<String>>().join(" ")
+                ),
+            }
+        })
     }
 }

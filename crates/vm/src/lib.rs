@@ -16,7 +16,7 @@ pub use helpers::{
     runtime_error, unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
 };
 use minilisp_parser::{Item, Value};
-use minilisp_util::{extend_lifetime, format_to_str, unexpected, with_caller, dbg}; //BinaryHeap;
+use minilisp_util::{dbg, extend_lifetime, format_to_str, unexpected, with_caller}; //BinaryHeap;
 
 pub type BuiltinFunction =
     for<'c> fn(&mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
@@ -130,19 +130,19 @@ impl<'c> VirtualMachine<'c> {
     ) -> Result<Value<'c>> {
         // let mut function: Fn(&'c mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>> =
         let mut function = try_result!(self.get_symbol_function(sym));
-        let mut closure = &mut self.clone();
-        let result = function(closure, list);
+        let mut vm = &mut self.clone();
+        let result = function(vm, list);
         // let result = function.call(
-        //     unsafe { std::mem::transmute::<&mut VirtualMachine<'c>, &'c mut VirtualMachine<'c>>(&mut closure) },
+        //     unsafe { std::mem::transmute::<&mut VirtualMachine<'c>, &'c mut VirtualMachine<'c>>(&mut vm) },
         //     list,
         // );
-        // if closure.symbols() != self.symbols() {
+        // if vm.symbols() != self.symbols() {
         //     warn!("time to re-architect the virtual-machine design");
         // }
         match result {
             Ok(item) => Ok(self.eval_ast(item)?),
             Err(error) => Err(runtime_error(
-                format!("Failed to evaluate function {:#?}", sym),
+                format!("Failed to evaluate function {:#?}: {}", sym, error),
                 Some(with_caller!(error)),
             )),
         }
@@ -167,40 +167,47 @@ impl<'c> VirtualMachine<'c> {
     }
 
     pub fn setq(&mut self, sym: String, item: Item<'c>) -> Option<Symbol<'c>> {
-        dbg!("setq", &item);
+        //("setq", &item);
         let previous = self.symbols.insert(sym, Symbol::Item(item));
-        dbg!("setq", &self.symbols);
+        //("setq", &self.symbols);
         previous
     }
 
     pub fn eval_list(&mut self, mut list: VecDeque<Item<'c>>) -> Result<Value<'c>> {
-        dbg!(&list);
+        //(&list);
         if list.is_empty() {
             Ok(Value::Nil)
         } else {
-            if let Some(Item::Symbol(sym)) = list.front() {
-                Ok(try_result!(
-                    self.eval_symbol_function(sym, list.range(1..).map(Clone::clone).collect())
-                ))
-            } else {
-                Ok(Value::String(Cow::from(format!("{:#?}", list))))
+            match list.front().clone() {
+                Some(Item::Symbol(sym)) => {
+                    //(&sym);
+                    Ok(try_result!(
+                        self.eval_symbol_function(sym, list.range(1..).map(Clone::clone).collect())
+                    ))
+                },
+                Some(Item::List(list)) => Ok(try_result!(self.eval_list(list.clone()))),
+                Some(Item::Value(value)) => Ok(value.clone()),
+                None => {
+                    //(list.front());
+                    Ok(Value::String(Cow::from(format!("{:#?}", list))))
+                },
             }
         }
     }
 
     pub fn eval_symbol(&mut self, sym: &str) -> Result<Value<'c>> {
         let symbol = try_result!(self.get_symbol(sym));
-        dbg!(&sym, &symbol);
+        //(&sym, &symbol);
         match symbol {
             Symbol::Item(item) => match item {
                 Item::Value(value) => Ok(value.clone()),
                 Item::List(list) => {
-                    dbg!(&list);
+                    //(&list);
                     let debug = format!("{:#?}", list);
                     Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },
                 Item::Symbol(item_sym) => {
-                    dbg!(&item_sym);
+                    //(&item_sym);
                     let debug = format!("{:#?}", item_sym);
                     Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },

@@ -37,7 +37,7 @@ fn main() -> Result<()> {
                             _ => Item::List(ast),
                         }) {
                             Ok(value) => {
-                                println!("{:#?}", value);
+                                println!("{}", value);
                             },
                             Err(error) => print_error(error),
                         }

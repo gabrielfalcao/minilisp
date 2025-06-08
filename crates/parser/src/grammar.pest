@@ -18,14 +18,14 @@ close_paren             = @{ ")" }
 nonsymbol               = { open_paren | quote | backquote | comma | close_paren | double_quote | WHITESPACE }
 
 statement               = { item+ }
-item                    = { (value | symbol) | list}
+item                    = { (value | symbol) | sexpr}
 
 value                   = { (t | nil | float | unsigned | integer | double_quoted_string) }
 symbol                  = @{ (!(nonsymbol | integer) ~ ANY)+ }
 
-defun                   = { open_paren ~ "defun" ~ symbol_list ~ item* }
-list                    = { quote? ~ open_paren ~ item* ~ close_paren }
-symbol_list             = { open_paren ~ symbol* ~ close_paren }
+defun                   = { open_paren ~ "defun" ~ symbol_sexpr ~ item* }
+sexpr                    = { quote? ~ open_paren ~ item* ~ close_paren }
+symbol_sexpr             = { open_paren ~ symbol* ~ close_paren }
 
 delimiter               = _{ NEWLINE+ }
 WHITESPACE              = _{ " " | "\t" | "\n" }

@@ -1,8 +1,7 @@
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::Pair;
 use pest::{Position, Span};
-use minilisp_util::{caller, dbg, try_result, unexpected, unwrap_result, with_caller};
 
-use crate::{Error, Node, Result, Rule, Source};
+use crate::Rule;
 
 pub fn format_span(span: &Span) -> String {
     format!(
@@ -27,7 +26,7 @@ pub fn format_rule(pair: &Pair<Rule>) -> String {
 // ) -> Error<'a> {
 //     with_caller!(Error::new(
 //         format!("expected {}, found {}", expecting, rule_to_string(&pair.as_rule())),
-//         Node::from_pair(pair, source_info),
+//         Span::from_pair(pair, source_info),
 //     ))
 // }
 // pub fn parse_error_expecting_any_of<'a, T: std::fmt::Display>(
@@ -42,7 +41,7 @@ pub fn format_rule(pair: &Pair<Rule>) -> String {
 //             expecting,
 //             rule_options_to_string(pairs.clone().map(|pair| pair.as_rule()).collect::<Vec<Rule>>())
 //         ),
-//         Node::from_pair(parent_pair, source_info),
+//         Span::from_pair(parent_pair, source_info),
 //     ))
 // }
 // pub fn expect_single_inner_pair<'a>(
@@ -58,7 +57,7 @@ pub fn format_rule(pair: &Pair<Rule>) -> String {
 //                 pair.as_str(),
 //                 rule_options_to_string(expected_rules)
 //             ),
-//             Node::from_pair(pair, source_info),
+//             Span::from_pair(pair, source_info),
 //         ))),
 //     }
 // }

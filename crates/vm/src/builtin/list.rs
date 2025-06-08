@@ -7,7 +7,7 @@ use minilisp_util::{dbg, try_result};
 use crate::helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
-pub fn list<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+pub fn list<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
         return Ok(Item::Value(Value::Nil))
     }
@@ -17,7 +17,7 @@ pub fn list<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> R
 
 }
 
-pub fn cons<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+pub fn cons<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
         return Ok(Item::Value(Value::Nil))
     }
@@ -26,7 +26,7 @@ pub fn cons<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> R
     Ok(Item::Value(Value::Nil))
 }
 
-pub fn car<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+pub fn car<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
         return Ok(Item::Value(Value::Nil))
     }
@@ -35,7 +35,7 @@ pub fn car<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Re
     Ok(car)
 }
 
-pub fn cdr<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+pub fn cdr<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
         return Ok(Item::Value(Value::Nil))
     }

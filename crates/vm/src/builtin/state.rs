@@ -9,7 +9,7 @@ use crate::helpers::{
 };
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
-pub fn setq<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+pub fn setq<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
         return Ok(Item::Value(Value::Nil));
     }
@@ -21,7 +21,7 @@ pub fn setq<'c>(closure: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> R
         let car = list.pop_front().unwrap().clone();
         if let Some(symbol) = car.as_symbol() {
             let cdr = list.pop_front().unwrap().clone();
-            closure.setq(symbol.to_string(), cdr.clone());
+            vm.setq(symbol.to_string(), cdr.clone());
             if list.is_empty() {
                 break cdr
             }

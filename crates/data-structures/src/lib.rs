@@ -6,6 +6,8 @@ pub mod cons;
 pub use cons::{car, cdr, cons};
 pub mod cell;
 pub use cell::Cell;
+// pub mod list;
+// pub use list::List;
 pub mod value;
 pub use value::Value;
 pub mod node;

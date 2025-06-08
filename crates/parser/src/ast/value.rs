@@ -4,9 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-use minilisp_util::{
-    caller, dbg, extend_lifetime, try_result, unexpected, unwrap_result, with_caller,
-};
+use minilisp_util::{extend_lifetime, unexpected};
 use pest::iterators::Pair;
 
 use crate::Rule;
@@ -16,7 +14,7 @@ pub enum Value<'a> {
     Integer(i64),
     // String(&'a str),
     String(Cow<'a, str>),
-    UnsignedInteger(u64),
+    UnsignedInteger(u32),
     T,
     #[default]
     Nil,
@@ -63,7 +61,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn as_unsigned_integer(&self) -> Option<u64> {
+    pub fn as_unsigned_integer(&self) -> Option<u32> {
         if let Value::UnsignedInteger(value) = self {
             Some(*value)
         } else {
@@ -95,7 +93,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn to_unsigned_integer(&self) -> u64 {
+    pub fn to_unsigned_integer(&self) -> u32 {
         if let Some(value) = self.as_unsigned_integer() {
             value
         } else {
@@ -103,7 +101,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn to_str(&self) -> & str {
+    pub fn to_str(&self) -> &str {
         if let Some(value) = self.as_str() {
             value
         } else {
@@ -112,7 +110,7 @@ impl<'a> Value<'a> {
     }
 }
 impl<'a> Value<'a> {
-    pub fn from_pair(pair: &mut Pair<Rule>) -> Value<'a> {
+    pub fn from_pair(pair: &'a Pair<Rule>) -> Value<'a> {
         match pair.as_rule() {
             Rule::float => Value::Float(f64::from_str(pair.as_span().as_str()).expect("float")),
             Rule::integer =>
@@ -120,9 +118,9 @@ impl<'a> Value<'a> {
             Rule::string => Value::String(Cow::from(pair.as_span().as_str().to_string())),
             Rule::t => Value::T,
             Rule::unsigned => Value::UnsignedInteger(
-                u64::from_str(pair.as_span().as_str()).expect("unsigned integer"),
+                u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
             ),
-            Rule::value => Value::from_pair(&mut pair.clone().into_inner().next().expect("value")),
+            Rule::value => Value::from_pair(extend_lifetime!(&'a Pair<'a, Rule>, &pair)),
             Rule::nil => Value::Nil,
             _ => unexpected!(pair),
         }
@@ -135,8 +133,8 @@ impl<'a, 'c> Into<i64> for Value<'a> {
     }
 }
 
-impl<'a, 'c> Into<u64> for Value<'a> {
-    fn into(self) -> u64 {
+impl<'a, 'c> Into<u32> for Value<'a> {
+    fn into(self) -> u32 {
         self.to_unsigned_integer()
     }
 }

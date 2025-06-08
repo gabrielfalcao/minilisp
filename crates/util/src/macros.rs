@@ -4,7 +4,7 @@ macro_rules! location {
         let location = format!(
             "{}{}{}:{}",
             minilisp_util::color::fg($crate::function_name!(), 28),
-            minilisp_util::color::fg(" @ ", 220),
+            minilisp_util::color::fg(" file ", 220),
             $crate::filename!(),
             minilisp_util::color::fg(line!().to_string(), 49)
         );
@@ -88,6 +88,7 @@ macro_rules! tag {
 }
 #[macro_export]
 macro_rules! dbg {
+    () => {eprintln!("");};
     ($( $arg:expr ),* ) => {{
         let obj = format!("{}", [$(
             format!("{}", $crate::indent_objdump!($arg)),
@@ -203,7 +204,6 @@ macro_rules! impl_error {
                     previous: previous.map(Box::new),
                 }
             }
-
         }
         impl std::error::Error for $name {}
 
