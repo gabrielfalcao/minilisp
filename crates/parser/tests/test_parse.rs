@@ -42,7 +42,7 @@ fn test_quoted_list_of_literal_strings() -> Result<'static, ()> {
     assert_ast_equal!(
         items,
         vec_deque![Item::List(vec_deque![
-            Item::symbol("list"),
+            Item::symbol("quote"),
             Item::Value(Value::from("a")),
             Item::Value(Value::from("b")),
         ])]
@@ -76,7 +76,7 @@ fn test_list_of_literal_strings_and_quoted_list_of_literal_strings() -> Result<'
             Item::Value(Value::from("a")),
             Item::Value(Value::from("b")),
             Item::List(vec_deque![
-                Item::symbol("list"),
+                Item::symbol("quote"),
                 Item::Value(Value::from("c")),
                 Item::Value(Value::from("d")),
             ]),
@@ -95,7 +95,7 @@ fn test_cons_of_car_literal_string_and_cdr_quoted_list_of_literal_strings() -> R
             Item::symbol("cons"),
             Item::Value(Value::from("a")),
             Item::List(vec_deque![
-                Item::symbol("list"),
+                Item::symbol("quote"),
                 Item::Value(Value::from("b")),
                 Item::Value(Value::from("c")),
             ]),
@@ -128,7 +128,7 @@ fn test_defun() -> Result<'static, ()> {
                 Item::symbol("cons"),
                 Item::Value(Value::from("a")),
                 Item::List(vec_deque![
-                    Item::symbol("list"),
+                    Item::symbol("quote"),
                     Item::Value(Value::from("b")),
                     Item::Value(Value::from("c")),
                 ])

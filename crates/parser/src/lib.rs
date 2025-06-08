@@ -6,7 +6,6 @@ pub mod macros;
 pub mod test;
 use std::collections::VecDeque;
 
-use pest::iterators::Pair;
 pub mod source;
 pub use ast::{
     format_position,

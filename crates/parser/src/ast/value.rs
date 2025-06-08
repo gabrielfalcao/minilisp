@@ -21,7 +21,7 @@ pub enum Value<'a> {
 }
 
 impl<'a> Value<'a> {
-    pub fn from_pair(pair: Pair<Rule>) -> Value<'a> {
+    pub fn from_pair(pair: Pair<'a, Rule>) -> Value<'a> {
         match pair.as_rule() {
             Rule::float => Value::Float(f64::from_str(pair.as_span().as_str()).expect("float")),
             Rule::integer =>
@@ -31,7 +31,7 @@ impl<'a> Value<'a> {
             Rule::unsigned => Value::UnsignedInteger(
                 u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
             ),
-            Rule::value => Value::from_pair(pair),
+            Rule::value => Value::from_pair(pair.clone().into_inner().next().expect("value")),
             Rule::nil => Value::Nil,
             _ => unexpected!(pair),
         }

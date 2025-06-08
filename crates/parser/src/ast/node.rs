@@ -45,7 +45,7 @@ impl<'a> Node<'a> {
                     let pair = pairs.next().expect("quote, open_paren or item");
                     match pair.as_rule() {
                         Rule::quote => {
-                            items.push_back(Node::Symbol(span.clone(), Cow::from("sexpr")));
+                            items.push_back(Node::Symbol(span.clone(), Cow::from("quote")));
                         },
                         Rule::open_paren => continue,
                         Rule::value | Rule::symbol | Rule::item => {
