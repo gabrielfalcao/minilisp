@@ -4,6 +4,7 @@
 use std::borrow::Cow;
 
 pub use errors::{Error, ErrorType, Result};
+use minilisp_util::vec_deque;
 pub mod builtin;
 pub mod errors;
 pub mod macros;
@@ -16,7 +17,7 @@ pub use helpers::{
     runtime_error, unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
 };
 use minilisp_parser::{Item, Value};
-use minilisp_util::{dbg, extend_lifetime, format_to_str, unexpected, with_caller}; //BinaryHeap;
+use minilisp_util::{format_to_str, unexpected, with_caller}; //BinaryHeap;
 
 pub type BuiltinFunction =
     for<'c> fn(&mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
@@ -24,6 +25,7 @@ pub type BuiltinFunction =
 #[derive(Clone)]
 pub enum Symbol<'c> {
     Item(Item<'c>),
+    Value(Value<'c>),
     BuiltinFunction(Cow<'c, str>, BuiltinFunction),
 }
 
@@ -33,9 +35,9 @@ impl<'c> Debug for Symbol<'c> {
             f,
             "{}",
             match self {
-                Symbol::Item(item) => format!("Symbol::Item({:#?})", item),
-                Symbol::BuiltinFunction(sym, function) =>
-                    format!("Symbol::BuiltinFunction({})", sym),
+                Symbol::Value(value) => format!("{:#?}", value),
+                Symbol::Item(item) => format!("{:#?}", item),
+                Symbol::BuiltinFunction(name, _) => format!("builtin-function"),
             }
         )
     }
@@ -44,6 +46,7 @@ impl<'c> Symbol<'c> {
     pub fn as_item(&self) -> Item<'c> {
         match self {
             Symbol::Item(item) => item.clone(),
+            Symbol::Value(value) => Item::Value(value.clone()),
             Symbol::BuiltinFunction(sym, function) => {
                 warn!(format!("symbol {} is a builtin-function", sym));
                 Item::symbol(sym)
@@ -81,6 +84,8 @@ impl<'c> VirtualMachine<'c> {
         vm.register_builtin_function("car", builtin::list::car);
         vm.register_builtin_function("cdr", builtin::list::cdr);
         vm.register_builtin_function("cons", builtin::list::cons);
+        vm.register_builtin_function("quote", builtin::list::quote);
+        vm.register_builtin_function("backquote", builtin::list::backquote);
         vm.register_builtin_function("+", builtin::math::arithmetic::add);
         vm.register_builtin_function("-", builtin::math::arithmetic::sub);
         vm.register_builtin_function("*", builtin::math::arithmetic::mul);
@@ -107,6 +112,10 @@ impl<'c> VirtualMachine<'c> {
                 format!("symbol {:#?} is not a function: {:#?}", sym, item),
                 None
             ))),
+            Symbol::Value(value) => Err(with_caller!(runtime_error(
+                format!("symbol {:#?} is not a function: {:#?}", sym, value),
+                None
+            ))),
 
             Symbol::BuiltinFunction(_sym, function) => Ok(function),
         }
@@ -128,17 +137,8 @@ impl<'c> VirtualMachine<'c> {
         sym: &str,
         list: VecDeque<Item<'c>>,
     ) -> Result<Value<'c>> {
-        // let mut function: Fn(&'c mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>> =
         let mut function = try_result!(self.get_symbol_function(sym));
-        let mut vm = &mut self.clone();
-        let result = function(vm, list);
-        // let result = function.call(
-        //     unsafe { std::mem::transmute::<&mut VirtualMachine<'c>, &'c mut VirtualMachine<'c>>(&mut vm) },
-        //     list,
-        // );
-        // if vm.symbols() != self.symbols() {
-        //     warn!("time to re-architect the virtual-machine design");
-        // }
+        let result = function(self, list);
         match result {
             Ok(item) => Ok(self.eval_ast(item)?),
             Err(error) => Err(runtime_error(
@@ -154,11 +154,10 @@ impl<'c> VirtualMachine<'c> {
                 if list.is_empty() {
                     return Ok(Value::Nil);
                 }
-                let car = list.pop_front().unwrap();
-                match car {
-                    Item::Symbol(symbol) =>
+                match list.pop_front() {
+                    Some(Item::Symbol(symbol)) =>
                         Ok(try_result!(self.eval_symbol_function(&symbol, list))),
-                    item => unexpected!(item),
+                    item => Ok(Value::List(list.iter().map(|item| item.as_value()).collect())),
                 }
             },
             Item::Symbol(symbol) => Ok(try_result!(self.eval_symbol(&symbol))),
@@ -166,11 +165,27 @@ impl<'c> VirtualMachine<'c> {
         }
     }
 
-    pub fn setq(&mut self, sym: String, item: Item<'c>) -> Option<Symbol<'c>> {
+    pub fn setq(&mut self, sym: String, item: Item<'c>) -> Result<Item<'c>> {
         //("setq", &item);
-        let previous = self.symbols.insert(sym, Symbol::Item(item));
+        let symbol_value = Symbol::Value(self.eval_ast(item.clone())?);
+        let previous = self.symbols.insert(sym.clone(), symbol_value.clone());
         //("setq", &self.symbols);
-        previous
+        let item = match previous.unwrap_or_else(|| symbol_value) {
+            Symbol::Value(value) => Item::Value(value.clone()),
+            Symbol::Item(item) => item.clone(),
+            Symbol::BuiltinFunction(sym, _) => Item::Symbol(sym.clone()),
+        };
+
+        Ok(item)
+    }
+
+    pub fn eval_list_as_items(&mut self, mut list: VecDeque<Item<'c>>) -> Result<VecDeque<Item<'c>>> {
+        let items = match self.eval_list(list)? {
+            Value::Symbol(sym) => vec_deque![Item::Symbol(sym)],
+            Value::List(list) => list.iter().map(|value| value.as_item()).collect(),
+            value => vec_deque![Item::Value(value)],
+        };
+        Ok(items)
     }
 
     pub fn eval_list(&mut self, mut list: VecDeque<Item<'c>>) -> Result<Value<'c>> {
@@ -199,10 +214,10 @@ impl<'c> VirtualMachine<'c> {
         let symbol = try_result!(self.get_symbol(sym));
         //(&sym, &symbol);
         match symbol {
+            Symbol::Value(value) => Ok(value.clone()),
             Symbol::Item(item) => match item {
                 Item::Value(value) => Ok(value.clone()),
                 Item::List(list) => {
-                    //(&list);
                     let debug = format!("{:#?}", list);
                     Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },
@@ -211,29 +226,6 @@ impl<'c> VirtualMachine<'c> {
                     let debug = format!("{:#?}", item_sym);
                     Ok(Value::String(Cow::from(debug.as_str().to_string())))
                 },
-                // if sym != *item_sym {
-                //     Err(with_caller!(runtime_error(
-                //         format!("when evaluating {:#?}: {} != {}", sym, sym, item_sym),
-                //         None
-                //     )))
-                // } else {
-                //     let symbol = try_result!(self.get_symbol(sym));
-                //     dbg!(&symbol);
-                //     match symbol {
-                //         Symbol::Item(Item::Value(value)) => Ok(value.clone()),
-                //         Symbol::Item(Item::Symbol(sym)) => {
-                //             dbg!(&sym);
-                //             Ok(try_result!(self.eval_symbol(sym)))
-                //         },
-                //         Symbol::Item(Item::List(list)) => {
-                //             dbg!(&list);
-                //             let debug = format!("{:#?}", list);
-                //             Ok(Value::String(Cow::from(debug.as_str().to_string())))
-                //         },
-                //         Symbol::BuiltinFunction(sym, _) =>
-                //             Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),
-                //     }
-                // },
             },
             Symbol::BuiltinFunction(sym, _) =>
                 Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),

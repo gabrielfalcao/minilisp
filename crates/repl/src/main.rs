@@ -1,8 +1,10 @@
+use std::collections::VecDeque;
+
 use minilisp_parser::{parse_source, Item, Value};
+use minilisp_util::color;
 use minilisp_vm::VirtualMachine;
 use rustyline::error::ReadlineError;
 use rustyline::{DefaultEditor, Result};
-use minilisp_util::color;
 fn print_error<T: std::fmt::Display>(error: T) {
     eprintln!(
         "{}",
@@ -15,34 +17,49 @@ fn main() -> Result<()> {
     println!("minilisp VM version {}", env!("CARGO_PKG_VERSION"));
     let mut rl = DefaultEditor::new()?;
 
-   if rl.load_history(".minilisp.history").is_err() {
+    if rl.load_history(".minilisp.history").is_err() {
         println!("No previous history.");
     }
+    println!("\tHELP:");
+    println!("\ttype `@' to see the symbol table");
+    println!("\ttry arithmetic expressions such as `(* 4 (+ 3 2))'");
     loop {
         let readline = rl.readline(": ");
         match readline {
             Ok(line) => {
-                match line.as_str() {
+                rl.add_history_entry(line.as_str())?;
+                let line = line.to_string();
+                match line.trim() {
                     "@" => {
                         println!("{:#?}", vm.symbols());
-                        continue
-                    }
-                    _ => {}
-                }
-                match parse_source(&line) {
-                    Ok(ast) => {
-                        match vm.eval_ast(match ast.len() {
-                            0 => Item::Value(Value::Nil),
-                            1 => ast.front().map(Clone::clone).unwrap(),
-                            _ => Item::List(ast),
-                        }) {
-                            Ok(value) => {
-                                println!("{}", value);
-                            },
-                            Err(error) => print_error(error),
-                        }
+                        continue;
                     },
-                    Err(error) => print_error(error),
+                    _ => match parse_source(&line) {
+                        Ok(ast) => {
+                            let ast = ast
+                                .iter()
+                                .map(|node| node.clone().as_item())
+                                .collect::<VecDeque<Item<'_>>>();
+                            match vm.eval_ast(match ast.len() {
+                                0 => Item::Value(Value::Nil),
+                                1 => ast.front().map(Clone::clone).unwrap(),
+                                _ => Item::List(ast),
+                            }) {
+                                Ok(value) => {
+                                    println!("{}", value);
+                                    continue;
+                                },
+                                Err(error) => {
+                                    print_error(error);
+                                    continue;
+                                },
+                            }
+                        },
+                        Err(error) => {
+                            print_error(error);
+                            continue;
+                        },
+                    },
                 }
             },
             Err(ReadlineError::Interrupted) => {

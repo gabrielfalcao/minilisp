@@ -2,33 +2,44 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
 
 use minilisp_parser::{Item, Value};
-use minilisp_util::{dbg, try_result};
+use minilisp_util::{dbg, try_result, vec_deque};
 
 use crate::helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn list<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
-        return Ok(Item::Value(Value::Nil))
+        return Ok(Item::Value(Value::Nil));
     }
     let mut list = list.clone();
     let car = list.pop_front().unwrap();
-    Ok(Item::Value(Value::Nil))
-
+    Ok(Item::List(list))
 }
 
 pub fn cons<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
-        return Ok(Item::Value(Value::Nil))
+        return Ok(Item::Value(Value::Nil));
     }
     let mut list = list.clone();
     let car = list.pop_front().unwrap();
-    Ok(Item::Value(Value::Nil))
+    Ok(Item::List(vec_deque![car, Item::List(list)]))
+}
+pub fn quote<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+    if list.is_empty() {
+        return Ok(Item::Value(Value::Nil));
+    }
+    Ok(Item::List(list))
+}
+pub fn backquote<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
+    if list.is_empty() {
+        return Ok(Item::Value(Value::Nil));
+    }
+    Ok(Item::List(list))
 }
 
 pub fn car<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
-        return Ok(Item::Value(Value::Nil))
+        return Ok(Item::Value(Value::Nil));
     }
     let mut list = list.clone();
     let car = list.pop_front().unwrap().clone();
@@ -37,7 +48,7 @@ pub fn car<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<
 
 pub fn cdr<'c>(vm: &mut VirtualMachine<'c>, list: VecDeque<Item<'c>>) -> Result<Item<'c>> {
     if list.is_empty() {
-        return Ok(Item::Value(Value::Nil))
+        return Ok(Item::Value(Value::Nil));
     }
     let mut list = list.clone();
     list.pop_front().unwrap();

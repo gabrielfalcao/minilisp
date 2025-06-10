@@ -2,12 +2,13 @@ use std::borrow::Cow;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::collections::VecDeque;
 use std::str::FromStr;
 
 use minilisp_util::unexpected;
 use pest::iterators::Pair;
 
-use crate::Rule;
+use crate::{Rule, Item};
 #[derive(Clone, PartialEq, PartialOrd, Default)]
 pub enum Value<'a> {
     Float(f64),
@@ -15,6 +16,8 @@ pub enum Value<'a> {
     // String(&'a str),
     String(Cow<'a, str>),
     UnsignedInteger(u32),
+    Symbol(Cow<'a, str>),
+    List(VecDeque<Value<'a>>),
     T,
     #[default]
     Nil,
@@ -126,6 +129,16 @@ impl<'a> Value<'a> {
             panic!("{:#?} is not a str", self);
         }
     }
+
+    pub fn as_item(&self) -> Item<'a> {
+        match self.clone() {
+            Value::Symbol(sym) => {
+                Item::Symbol(sym)
+            },
+            Value::List(list) => Item::List(list.iter().map(|value|value.as_item()).collect()),
+            value => Item::Value(value),
+        }
+    }
 }
 
 impl<'a, 'c> Into<i64> for Value<'a> {
@@ -182,6 +195,8 @@ impl<'a> Display for Value<'a> {
                 Value::UnsignedInteger(value) => value.to_string(),
                 Value::Nil => "nil".to_string(),
                 Value::T => "t".to_string(),
+                Value::Symbol(sym) => sym.to_string(),
+                Value::List(list) => format!("({})", list.iter().map(|item|item.to_string()).collect::<Vec<String>>().join(" ")),
             }
         )
     }
@@ -199,6 +214,9 @@ impl<'a> Debug for Value<'a> {
                 Value::UnsignedInteger(value) => format!("UnsignedInteger({:#?})", value),
                 Value::Nil => "Nil".to_string(),
                 Value::T => "T".to_string(),
+                Value::Symbol(sym) => format!("Symbol({:#?})", sym.to_string()),
+                Value::List(list) => format!("List({:#?})", list),
+
             }
         )
     }

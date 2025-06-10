@@ -4,6 +4,21 @@ use minilisp_parser::{Item, Value};
 use minilisp_vm::{Result, VirtualMachine};
 use minilisp_util::{vec_deque};
 
+
+#[test]
+fn test_multiply_numbers() -> Result<()> {
+    let mut vm = VirtualMachine::new();
+    let ast = Item::List(vec_deque![
+        Item::symbol("*"),
+        Item::Value(Value::Integer(3)),
+        Item::Value(Value::Integer(7)),
+    ]);
+
+    let val = vm.eval_ast(ast)?;
+    assert_equal!(val, Value::Integer(21));
+    Ok(())
+}
+
 #[test]
 fn test_add_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
@@ -33,20 +48,6 @@ fn test_subtract_numbers() -> Result<()> {
     Ok(())
 }
 
-
-#[test]
-fn test_multiply_numbers() -> Result<()> {
-    let mut vm = VirtualMachine::new();
-    let ast = Item::List(vec_deque![
-        Item::symbol("*"),
-        Item::Value(Value::Integer(3)),
-        Item::Value(Value::Integer(7)),
-    ]);
-
-    let val = vm.eval_ast(ast)?;
-    assert_equal!(val, Value::Integer(21));
-    Ok(())
-}
 
 
 #[test]

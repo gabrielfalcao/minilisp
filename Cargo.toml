@@ -6,8 +6,9 @@ members = [
     "crates/parser",
     "crates/repl",
     "crates/vm",
-    "crates/data-structures",
 ]
+default-members = ["crates/repl"]
+
 
 
 [workspace.package]
@@ -26,13 +27,14 @@ categories = []
 clap = { version = "4.5.37", features = ["derive", "env", "string", "unicode", "wrap_help"] }
 iocore = "3.0.3"
 iocore-test = "3.0.3"
-pest = "2.8.0"
+pest = {version = "2.8.0", features = ["pretty-print"]}
 pest_meta = "2.8.0"
 pest_derive = "2.8.0"
 prettyplease = "0.2.32"
 proc-macro2 = { version = "1.0.95", features = ["span-locations"] }
 quote = "1.0.40"
-rustyline = {version = "15.0.0", features = ["with-file-history"]}
+rustyline = {version = "15.0.0", features = ["with-file-history", "with-sqlite-history", "rustyline-derive"]}
+
 serde = { version = "1.0.219", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 syntect = "5.2.0"
@@ -42,5 +44,4 @@ minilisp-formatter = { path = "crates/formatter" }
 minilisp-parser = { path = "crates/parser" }
 minilisp-repl = { path = "crates/repl" }
 minilisp-vm = { path = "crates/vm" }
-minilisp-data-structures = { path = "crates/data-structures" }
 k9 = "0.12.0"

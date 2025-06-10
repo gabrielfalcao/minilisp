@@ -23,8 +23,7 @@ cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
 minilisp-util = {workspace = true}
 minilisp-vm = {workspace = true}
 minilisp-parser = {workspace = true}
-rustyline = {workspace = true}
-
+rustyline = {workspace = true, features = ["with-file-history", "with-sqlite-history", "rustyline-derive"]}
 [[bin]]
 name = "minilisp"
 path = "src/main.rs"

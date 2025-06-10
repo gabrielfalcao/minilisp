@@ -14,7 +14,7 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
-    pub fn as_item<'c>(&self) -> Item<'a> {
+    pub fn as_item(&self) -> Item<'a> {
         match self {
             Node::List(_span, sexpr) =>
                 Item::List(sexpr.iter().map(|node| node.as_item()).collect()),

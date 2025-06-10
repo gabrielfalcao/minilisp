@@ -24,13 +24,14 @@ pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 #[derive(Parser, Debug, Clone)]
 #[grammar = "src/grammar.pest"]
 pub struct MinilispSource;
-pub fn parse_source<'a>(input: &'a str) -> Result<'a, VecDeque<Node<'a>>> {
+pub fn parse_source<'a, T: std::fmt::Display>(input: T) -> Result<'a, VecDeque<Node<'a>>> {
+    let input = input.to_string();
     let source_info = Source {
-        source: Cow::from(input),
+        source: Cow::from(input.clone()),
         filename: None,
     };
     let source = source_info.clone();
-    let mut pairs = MinilispSource::parse(Rule::file, input).map_err(|e| {
+    let mut pairs = MinilispSource::parse(Rule::file, unsafe {std::mem::transmute::<&str, &'a str>(input.as_str())}).map_err(|e| {
         Error::new(e.variant.message().to_string(), Some(Span::from_error(e, source_info.clone())))
     })?;
     let file = pairs.next().unwrap();
