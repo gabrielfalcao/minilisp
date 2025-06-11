@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/util",
+    "crates/data-structures",
     "crates/formatter",
     "crates/parser",
     "crates/repl",
@@ -39,10 +40,12 @@ rustyline = {version = "15.0.0", features = ["with-file-history", "with-sqlite-h
 serde = { version = "1.0.219", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 syntect = "5.2.0"
+unique-pointer = { version = "0.3.1", features = ["debug"] }
 minilisp = { path = "crates/lang" }
 minilisp-util = { path = "crates/util" }
 minilisp-formatter = { path = "crates/formatter" }
 minilisp-parser = { path = "crates/parser" }
 minilisp-repl = { path = "crates/repl" }
+minilisp-data-structures = { path = "crates/data-structures" }
 minilisp-vm = { path = "crates/vm" }
 k9 = "0.12.0"

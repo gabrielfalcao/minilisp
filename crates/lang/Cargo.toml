@@ -32,6 +32,7 @@ minilisp-parser = { workspace = true }
 minilisp-traits = { workspace = true }
 minilisp-util = { workspace = true }
 minilisp-vm = { workspace = true }
+minilisp-data-structures = { workspace = true }
 
 [dev-dependencies]
 k9 = {workspace = true}
