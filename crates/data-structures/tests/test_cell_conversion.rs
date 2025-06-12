@@ -1,3 +1,4 @@
+#![allow(unused)]
 use minilisp_data_structures::{Cell, Value};
 use k9::assert_equal;
 
@@ -11,7 +12,7 @@ fn test_cell_from_u8() {
 fn test_cell_from_str() {
     let cell = Cell::from("head");
     let head = cell.head();
-    assert_equal!(head, Some(Value::from("head")));
+    assert_equal!(head, Some(Value::symbol("head")));
 }
 
 #[test]

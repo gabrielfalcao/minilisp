@@ -40,7 +40,7 @@ rustyline = {version = "15.0.0", features = ["with-file-history", "with-sqlite-h
 serde = { version = "1.0.219", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 syntect = "5.2.0"
-unique-pointer = { version = "0.3.1", features = ["debug"] }
+unique-pointer = { version = "0.4.0" }
 minilisp = { path = "crates/lang" }
 minilisp-util = { path = "crates/util" }
 minilisp-formatter = { path = "crates/formatter" }

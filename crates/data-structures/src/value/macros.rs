@@ -126,14 +126,39 @@ macro_rules! impl_number_type {
                 self.to_bytes().hash(state)
             }
         }
+        impl $crate::AsNumber<$type> for &$type {
+            fn as_number(&self) -> $type {
+                **self
+            }
+        }
         impl $crate::AsNumber<$type> for $name {
             fn as_number(&self) -> $type {
                 self.value
             }
         }
+        impl $trait for &$type {
+            fn $method_name(&self) -> $name {
+                $crate::$name {value: **self }
+            }
+        }
+        impl $trait for $type {
+            fn $method_name(&self) -> $name {
+                $crate::$name {value: *self }
+            }
+        }
         impl $trait for $name {
             fn $method_name(&self) -> $name {
                 self.clone()
+            }
+        }
+        impl $crate::AsNumber<$type> for &$name {
+            fn as_number(&self) -> $type {
+                self.value
+            }
+        }
+        impl $trait for &$name {
+            fn $method_name(&self) -> $name {
+                (*self).clone()
             }
         }
     };

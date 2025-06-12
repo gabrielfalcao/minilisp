@@ -26,11 +26,11 @@ fn value_option_ref_equals() {
 
 #[test]
 fn value_symbol() {
-    assert_equal!(Value::symbol("sym"), Value::Symbol("sym"));
+    assert_equal!(Value::symbol("sym"), Value::symbol("sym"));
 }
 
 
 #[test]
 fn value_integer() {
-    assert_equal!(Value::integer(1), Value::Integer(1i64.into()));
+    assert_equal!(Value::integer(1), Value::integer(1));
 }

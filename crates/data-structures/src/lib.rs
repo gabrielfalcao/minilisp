@@ -1,10 +1,15 @@
+#![allow(unused)]
 pub mod traits;
-pub use traits::{AsNumber, ListValue};
+pub use traits::{AsNumber, ListValue, Quotable};
 pub mod cons;
-pub use cons::{car, cdr, cons};
+pub use cons::{append, car, cdr, list, cons, makelist, setcar, setcdr};
 pub mod cell;
 pub use cell::{AsCell, Cell};
 pub mod value;
 pub use value::{AsValue, Float, Integer, UnsignedInteger, Value};
+pub mod symbol;
+pub use symbol::{AsSymbol, Symbol};
+pub mod list;
+pub use list::{AsList, List, ListIterator};
 pub mod macros;
 pub mod test;

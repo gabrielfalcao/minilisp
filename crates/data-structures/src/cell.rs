@@ -1,12 +1,15 @@
+#![allow(unused)]
 use std::iter::{Extend, IntoIterator, Iterator};
+use std::ops::Deref;
 
-use minilisp_util::color;
 use unique_pointer::{RefCounter, UniquePointer};
 
-use crate::{AsValue, Value};
+use crate::{
+    AsList, AsSymbol, AsValue, List, ListIterator, Quotable, Symbol, Value,
+};
 
-
-pub trait AsCell<'c> { //: ListValue {
+pub trait AsCell<'c>: Quotable {
+    //: ListValue {
     fn as_cell(&self) -> Cell<'c>;
 }
 
@@ -14,26 +17,51 @@ pub trait AsCell<'c> { //: ListValue {
 pub struct Cell<'c> {
     pub(crate) head: UniquePointer<Value<'c>>,
     pub(crate) tail: UniquePointer<Cell<'c>>,
+    pub(crate) cur: UniquePointer<Cell<'c>>,
     pub(crate) refs: RefCounter,
+    pub(crate) quoted: bool,
 }
 
 impl<'c> Cell<'c> {
     pub fn nil() -> Cell<'c> {
-        Cell {
+        Cell::quoted(Option::<Value<'c>>::None, false)
+        // Cell {
+        //     head: UniquePointer::<Value<'c>>::null(),
+        //     tail: UniquePointer::<Cell<'c>>::null(),
+        //     refs: RefCounter::null(),
+        //     quoted: false
+        // }
+    }
+
+    pub fn quoted<T: AsValue<'c>>(item: Option<T>, quoted: bool) -> Cell<'c> {
+        let mut cell = Cell {
             head: UniquePointer::<Value<'c>>::null(),
             tail: UniquePointer::<Cell<'c>>::null(),
+            cur: UniquePointer::<Cell<'c>>::null(),
             refs: RefCounter::null(),
+            quoted,
+        };
+        if let Some(item) = item {
+            cell.write(item.as_value());
         }
+        cell
+    }
+
+    pub fn quote(&self) -> Cell<'c> {
+        let mut cell = self.clone();
+        cell.quoted = true;
+        cell
     }
 
     pub fn is_nil(&self) -> bool {
         self.head.is_null() && self.tail.is_null()
     }
 
-    pub fn new(value: Value<'c>) -> Cell<'c> {
-        let mut cell = Cell::nil();
-        cell.write(value);
-        cell
+    pub fn new<T: AsValue<'c>>(item: T) -> Cell<'c> {
+        Cell::quoted(Some(item), false)
+        // let mut cell = Cell::nil();
+        // cell.write(item.as_value());
+        // cell
     }
 
     pub fn head(&self) -> Option<Value<'c>> {
@@ -123,6 +151,8 @@ impl<'c> Cell<'c> {
     pub(crate) fn write(&mut self, value: Value<'c>) {
         self.head.write(value);
         self.incr_ref();
+        assert!(self.cur.is_null());
+        self.cur = UniquePointer::from_ref(self);
     }
 
     pub(crate) fn swap_head(&mut self, other: &mut Self) {
@@ -139,6 +169,10 @@ impl<'c> Cell<'c> {
             other.refs = self.refs.clone();
             refs
         };
+    }
+
+    pub fn to_vec(&self) -> Vec<Value<'c>> {
+        Vec::<Value<'c>>::from_iter(self.clone().into_iter())
     }
 
     fn incr_ref(&mut self) {
@@ -168,18 +202,69 @@ impl<'c> Cell<'c> {
         }
     }
 }
+impl<'c> Quotable for Cell<'c> {
+    fn is_quoted(&self) -> bool {
+        self.quoted
+    }
+}
+
+impl<'c, T: Quotable + AsCell<'c>, const N: usize> AsCell<'c> for [T; N] {
+    fn as_cell(&self) -> Cell<'c> {
+        let mut cell = Cell::nil();
+        for item in self {
+            cell.add(&item.as_cell());
+        }
+        cell
+    }
+}
+
+impl<'c> AsList<'c> for Cell<'c> {
+    fn as_list(&self) -> List<'c> {
+        if self.is_nil() {
+            List::Empty(self.is_quoted())
+        } else {
+            List::Linked(self.clone(), self.is_quoted())
+        }
+    }
+}
+
+impl<'c, T: AsCell<'c>, const N: usize> ListIterator<'c, T> for [T; N] {
+    fn list_iter(&self) -> Cell<'c> {
+        let mut cell = Cell::nil();
+        for item in self {
+            cell.add(&item.as_cell());
+        }
+        cell
+    }
+}
+impl<'c> AsCell<'c> for Cell<'c> {
+    fn as_cell(&self) -> Cell<'c> {
+        self.clone()
+    }
+}
+impl<'c> AsCell<'c> for &Cell<'c> {
+    fn as_cell(&self) -> Cell<'c> {
+        UniquePointer::read_only(*self).read()
+    }
+}
+
+impl<'c> AsCell<'c> for &'c str {
+    fn as_cell(&self) -> Cell<'c> {
+        Cell::new(Value::symbol(self.to_string()))
+    }
+}
+impl<'c> AsCell<'c> for String {
+    fn as_cell(&self) -> Cell<'c> {
+        Cell::new(Value::string(self))
+    }
+}
 
 impl<'c> From<Value<'c>> for Cell<'c> {
     fn from(value: Value<'c>) -> Cell<'c> {
         Cell::new(value)
     }
 }
-impl<'c> From<&'c str> for Cell<'c> {
-    fn from(value: &'c str) -> Cell<'c> {
-        let value = Value::from(value);
-        Cell::new(value)
-    }
-}
+
 impl<'c> From<u8> for Cell<'c> {
     fn from(value: u8) -> Cell<'c> {
         Cell::new(Value::Byte(value))
@@ -192,6 +277,11 @@ impl<'c> From<u32> for Cell<'c> {
         } else {
             Cell::new(Value::UnsignedInteger(value.into()))
         }
+    }
+}
+impl<'c> From<f64> for Cell<'c> {
+    fn from(value: f64) -> Cell<'c> {
+        Cell::new(Value::float(value))
     }
 }
 impl<'c> From<u64> for Cell<'c> {
@@ -264,30 +354,30 @@ impl std::fmt::Debug for Cell<'_> {
             f,
             "{}",
             [
-                minilisp_util::color::reset(""),
-                minilisp_util::color::fore("Cell", 87),
-                minilisp_util::color::fore("@", 231),
-                minilisp_util::color::ref_addr(self),
-                minilisp_util::color::ansi(format!("[refs={}]", self.refs), 220, 16),
+                "Cell".to_string(),
                 format!(
                     "[{}]",
                     if self.is_nil() {
-                        format!("head and tail={}", color::fore("null", 196))
+                        format!("null")
                     } else {
                         [
                             if self.head.is_null() {
-                                format!("head: {}", color::fore("null", 196))
+                                format!("head: {}", "null")
                             } else {
-                                minilisp_util::color::ansi(
-                                    format!("head={:#?}", self.head),
-                                    231,
-                                    16,
+                                format!(
+                                    "head={:#?}",
+                                    self.head().unwrap_or_default()
                                 )
                             },
                             if self.tail.is_null() {
-                                format!("tail: {}", color::fore("null", 196))
+                                format!("tail: {}", "null")
                             } else {
-                                minilisp_util::color::fore(format!("tail={:#?}", self.tail), 82)
+                                format!(
+                                    "tail={:#?}",
+                                    self.tail()
+                                        .map(Clone::clone)
+                                        .unwrap_or_default()
+                                )
                             },
                         ]
                         .join(" | ")
@@ -304,29 +394,129 @@ impl std::fmt::Display for Cell<'_> {
             f,
             "{}",
             [
-                "Cell".to_string(),
-                if self.is_nil() {
+                if self.head.is_null() {
                     String::new()
                 } else {
-                    [
-                        if self.head.is_null() {
-                            format!("head: null")
-                        } else {
-                            format!("head={:#?}", self.head)
-                        },
-                        if self.tail.is_null() {
-                            format!("tail: null")
-                        } else {
-                            format!("tail={:#?}", self.tail)
-                        },
-                    ]
-                    .join(" | ")
-                }
+                    self.head().unwrap_or_default().to_string()
+                },
+                if self.tail.is_null() {
+                    String::new()
+                } else {
+                    self.tail()
+                        .map(Clone::clone)
+                        .unwrap_or_default()
+                        .to_string()
+                },
             ]
-            .join("")
+            .join(" ")
+            .trim()
         )
     }
 }
+
+// impl<'c> Iterator for Cell<'c> {
+//     type Item = Value<'c>;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         eprintln!();
+//         dbg!(&self.cur);
+//         if self.cur.is_not_null() {
+//             let value = self.cur.inner_ref().head();
+//             self.cur = self.cur.inner_ref().tail.clone();
+//             dbg!(&self.cur);
+//             value
+//         } else {
+//             // rewind iterator
+//             self.cur = UniquePointer::from_ref(self);
+//             None
+//         }
+//     }
+// }
+
+impl<'c> AsValue<'c> for Cell<'c> {
+    fn as_value(&self) -> Value<'c> {
+        if self.tail.is_null() {
+            match self.head() {
+                Some(head) => head,
+                None => Value::Nil,
+            }
+        } else if self.quoted {
+            Value::QuotedList(self.as_list())
+        } else {
+            Value::List(self.as_list())
+        }
+    }
+}
+
+impl<'c, T> From<T> for Cell<'c>
+where
+    T: AsSymbol<'c>,
+{
+    fn from(sym: T) -> Cell<'c> {
+        Cell::from(Value::from(sym.as_symbol()))
+    }
+}
+
+// // // // // impl<'c> From<&'c str> for Cell<'c> {
+// // // // //     fn from(value: &'c str) -> Cell<'c> {
+// // // // //         let value = Value::from(value);
+// // // // //         Cell::new(value)
+// // // // //     }
+// // // // // }
+
+// impl<'c, 'i> Extend<&'c &'i Value<'c>> for Cell<'c> {
+//     fn extend<T: IntoIterator<Item = &'c &'i Value<'c>>>(&mut self, iter: T) {
+//         for value in iter {
+//             self.add(value);
+//         }
+//     }
+// }
+
+// impl<'c> IntoIterator for &'c Cell<'c> {
+//     type IntoIter = Cell<'c>Iter<'c>;
+//     type Item = &'c String;
+
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.iter()
+//     }
+// }
+
+// impl<'c> From<Vec<Value<'c>>> for Cell<'c> {
+//     fn from(iter: Vec<Value<'c>>) -> Cell<'c> {
+//         let mut buf = Cell<'c>::new();
+//         buf.extend(iter);
+//         buf
+//     }
+// }
+// impl<'c, const N: usize> From<[&'c str; N]> for Cell<'c> {
+//     fn from(iter: [&'c str; N]) -> Cell<'c> {
+//         let mut buf = Cell<'c>::new();
+//         buf.extend(iter);
+//         buf
+//     }
+// }
+// impl<'c, 'i> From<&'c [&'i str]> for Cell<'c> {
+//     fn from(iter: &'c [&'i str]) -> Cell<'c> {
+//         let mut buf = Cell<'c>::new();
+//         buf.extend(iter);
+//         buf
+//     }
+// }
+// impl<'c, 'i, const N: usize> From<&'c [&'i str; N]> for Cell<'c> {
+//     fn from(iter: &'c [&'i str; N]) -> Cell<'c> {
+//         let mut buf = Cell<'c>::new();
+//         buf.extend(iter);
+//         buf
+//     }
+// }
+
+// impl<'c> Deref for Cell<'c> {
+//     type Target = [&Value<'c>];
+
+//     fn deref(&self) -> &[&Value<'c>] {
+//         self.to_vec().as_slice()
+//     }
+// }
 
 pub struct CellIterator<'c> {
     cell: UniquePointer<Cell<'c>>,
@@ -374,62 +564,3 @@ impl<'c> IntoIterator for Cell<'c> {
         CellIterator::new(self)
     }
 }
-
-impl<'c> AsValue<'c> for Cell<'c> {
-    fn as_value(&self) -> Value<'c> {
-        if self.tail.is_null() {
-            match self.head() {
-                Some(head) => head,
-                None => Value::Nil,
-            }
-        } else {
-            Value::Nil
-        }
-    }
-}
-
-// impl<'c, 'i> Extend<&'c &'i Value<'c>> for Cell<'c> {
-//     fn extend<T: IntoIterator<Item = &'c &'i Value<'c>>>(&mut self, iter: T) {
-//         for value in iter {
-//             self.add(value);
-//         }
-//     }
-// }
-
-// impl<'c> IntoIterator for &'c Cell<'c> {
-//     type IntoIter = Cell<'c>Iter<'c>;
-//     type Item = &'c String;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.iter()
-//     }
-// }
-
-// impl<'c> From<Vec<Value<'c>>> for Cell<'c> {
-//     fn from(iter: Vec<Value<'c>>) -> Cell<'c> {
-//         let mut buf = Cell<'c>::new();
-//         buf.extend(iter);
-//         buf
-//     }
-// }
-// impl<'c, const N: usize> From<[&'c str; N]> for Cell<'c> {
-//     fn from(iter: [&'c str; N]) -> Cell<'c> {
-//         let mut buf = Cell<'c>::new();
-//         buf.extend(iter);
-//         buf
-//     }
-// }
-// impl<'c, 'i> From<&'c [&'i str]> for Cell<'c> {
-//     fn from(iter: &'c [&'i str]) -> Cell<'c> {
-//         let mut buf = Cell<'c>::new();
-//         buf.extend(iter);
-//         buf
-//     }
-// }
-// impl<'c, 'i, const N: usize> From<&'c [&'i str; N]> for Cell<'c> {
-//     fn from(iter: &'c [&'i str; N]) -> Cell<'c> {
-//         let mut buf = Cell<'c>::new();
-//         buf.extend(iter);
-//         buf
-//     }
-// }

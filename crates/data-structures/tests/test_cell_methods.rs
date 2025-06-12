@@ -1,3 +1,4 @@
+#![allow(unused)]
 use minilisp_data_structures::{Cell, Value};
 use k9::assert_equal;
 

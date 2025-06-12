@@ -1,18 +1,18 @@
-use minilisp_data_structures::{car, cdr, cons, list, Cell, Value};
+#![allow(unused)]
 use k9::assert_equal;
+use minilisp_data_structures::{
+    car, cdr, cons, list, Cell, Value, List
+};
 
 #[test]
 fn test_cons() {
     let cell = cons("head", &mut Cell::from("tail"));
-    assert_equal!(
-        cell.values(),
-        vec![Value::from("head"), Value::from("tail")]
-    );
+    assert_equal!(cell.values(), vec![Value::symbol("head"), Value::symbol("tail")]);
 }
 
 #[test]
 fn test_list() {
-    let cell = list!("head", "middle", 33u8, "tail");
+    let cell = list([Value::from("head"), Value::from("middle"), Value::from(33u8), Value::from("tail")]);
     assert_equal!(
         cell.values(),
         vec![
@@ -26,13 +26,13 @@ fn test_list() {
 
 #[test]
 fn test_car() {
-    let cell = list!("head", "middle", 33u8, "tail");
+    let cell = list([Value::from("head"), Value::from("middle"), Value::from(33u8), Value::from("tail")]);
     assert_equal!(cell.head(), Some(Value::from("head")));
     assert_equal!(car(&cell), Value::from("head"));
 }
 
 #[test]
 fn test_cdr() {
-    let cell = list!("head", "middle", 33u8, "tail");
-    assert_equal!(cdr(&cell), list!("middle", 33u8, "tail"));
+    let cell = list([Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]);
+    assert_equal!(cdr(&cell), list([Value::symbol("b"), Value::symbol("c")]));
 }
