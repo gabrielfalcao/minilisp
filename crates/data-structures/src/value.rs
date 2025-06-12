@@ -13,15 +13,13 @@ pub use float::{AsFloat, Float};
 pub mod unsigned_integer;
 pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
 
-use crate::{
-    AsCell, AsList, AsNumber, AsSymbol, Cell, List, Quotable, Symbol,
-};
+use crate::{AsCell, AsNumber, AsSymbol, Cell, Quotable, Symbol};
 
 pub trait AsValue<'c>: Quotable {
     fn as_value(&self) -> Value<'c>;
 }
 
-#[derive(PartialOrd, Ord, Default, PartialEq, Eq)]
+#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq)]
 pub enum Value<'c> {
     #[default]
     Nil,
@@ -33,12 +31,12 @@ pub enum Value<'c> {
     UnsignedInteger(UnsignedInteger),
     Integer(Integer),
     Float(Float),
-    List(List<'c>),
-    QuotedList(List<'c>),
+    List(Cell<'c>),
+    QuotedList(Cell<'c>),
     EmptyList,
     EmptyQuotedList,
 }
-impl<'c> Value<'_> {
+impl<'c> Value<'c> {
     pub fn nil() -> Value<'c> {
         Value::Nil
     }
@@ -71,11 +69,11 @@ impl<'c> Value<'_> {
         Value::Float(value.as_float())
     }
 
-    pub fn list<T: AsList<'c>>(item: T) -> Value<'c> {
+    pub fn list<T: AsCell<'c>>(item: T) -> Value<'c> {
         if item.is_quoted() {
-            Value::QuotedList(item.as_list())
+            Value::QuotedList(item.as_cell())
         } else {
-            Value::List(item.as_list())
+            Value::List(item.as_cell())
         }
     }
 
@@ -86,6 +84,64 @@ impl<'c> Value<'_> {
             false
         }
     }
+
+    // pub(crate) fn extended<'l>(&self) -> Value<'l> {
+    //     let value = match self {
+    //         Value::String(value) => {
+    //             // String
+    //             Value::String(value.clone())
+    //         },
+    //         Value::Symbol(value) => {
+    //             // Symbol
+    //             Value::Symbol(value.clone())
+    //         },
+    //         Value::QuotedSymbol(value) => {
+    //             // QuotedSymbol
+    //             Value::QuotedSymbol(value.clone())
+    //         },
+    //         Value::Byte(value) => {
+    //             // Byte
+    //             Value::Byte(value.clone())
+    //         },
+    //         Value::UnsignedInteger(value) => {
+    //             // UnsignedInteger
+    //             Value::UnsignedInteger(value.clone())
+    //         },
+    //         Value::Integer(value) => {
+    //             // Integer
+    //             Value::Integer(value.clone())
+    //         },
+    //         Value::Float(value) => {
+    //             // Float
+    //             Value::Float(value.clone())
+    //         },
+    //         Value::List(value) => {
+    //             // List
+    //             Value::List(value.clone())
+    //         },
+    //         Value::QuotedList(value) => {
+    //             // QuotedList
+    //             Value::QuotedList(value.clone())
+    //         },
+    //         Value::Nil => {
+    //             // Nil
+    //             Value::Nil
+    //         },
+    //         Value::T => {
+    //             // T
+    //             Value::T
+    //         },
+    //         Value::EmptyList => {
+    //             // EmptyList
+    //             Value::EmptyList
+    //         },
+    //         Value::EmptyQuotedList => {
+    //             // EmptyQuotedList
+    //             Value::EmptyQuotedList
+    //         },
+    //     };
+    //     unsafe { std::mem::transmute::<Value<'_>, Value<'l>>(value) }
+    // }
 
     pub fn quote(&self) -> Value<'c> {
         let value = match self {
@@ -108,16 +164,53 @@ impl<'c> Value<'_> {
             // _ => self.clone(),
             _ => self.clone(),
         };
-        unsafe { std::mem::transmute::<Value<'_>, Value<'c>>(value) }
+        value.clone()
+    }
+
+    pub fn values(&self) -> Vec<Value<'c>> {
+        match self {
+            Value::List(cell) | Value::QuotedList(cell) => cell.values(),
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn head(&self) -> Value<'c> {
+        match self {
+            Value::List(cell) | Value::QuotedList(cell) =>
+                cell.head().unwrap_or_default(),
+            _ => Value::nil(),
+        }
+    }
+
+    pub fn tail(&self) -> Cell<'c> {
+        match self {
+            Value::List(cell) | Value::QuotedList(cell) =>
+                cell.tail().map(Clone::clone).unwrap_or_default(),
+            _ => Cell::nil(),
+        }
     }
 
     pub fn wrap_in_list(&self) -> Value<'c> {
         let value = if self.is_quoted() {
-            Value::QuotedList(List::Linked(self.as_cell(), true))
+            Value::QuotedList(self.as_cell())
         } else {
-            Value::List(List::Linked(self.as_cell(), false))
+            Value::List(self.as_cell())
         };
-        unsafe { std::mem::transmute::<Value<'_>, Value<'c>>(value) }
+        value.clone()
+    }
+
+    pub fn unwrap_list(&self) -> Value<'c> {
+        match self {
+            Value::List(cell) | Value::QuotedList(cell) => {
+                if cell.tail.is_null() {
+                    let value = cell.head().unwrap_or_default();
+                    value.clone()
+                } else {
+                    self.clone()
+                }
+            },
+            _ => self.clone(),
+        }
     }
 }
 
@@ -207,64 +300,11 @@ impl Debug for Value<'_> {
         )
     }
 }
-impl<'c> Clone for Value<'c> {
-    fn clone(&self) -> Value<'c> {
-        match self {
-            Value::String(value) => {
-                // String
-                Value::String(value.clone())
-            },
-            Value::Symbol(value) => {
-                // Symbol
-                Value::Symbol(value.clone())
-            },
-            Value::QuotedSymbol(value) => {
-                // QuotedSymbol
-                Value::QuotedSymbol(value.clone())
-            },
-            Value::Byte(value) => {
-                // Byte
-                Value::Byte(value.clone())
-            },
-            Value::UnsignedInteger(value) => {
-                // UnsignedInteger
-                Value::UnsignedInteger(value.clone())
-            },
-            Value::Integer(value) => {
-                // Integer
-                Value::Integer(value.clone())
-            },
-            Value::Float(value) => {
-                // Float
-                Value::Float(value.clone())
-            },
-            Value::List(value) => {
-                // List
-                Value::List(value.clone())
-            },
-            Value::QuotedList(value) => {
-                // QuotedList
-                Value::QuotedList(value.clone())
-            },
-            Value::Nil => {
-                // Nil
-                Value::Nil
-            },
-            Value::T => {
-                // T
-                Value::T
-            },
-            Value::EmptyList => {
-                // EmptyList
-                Value::EmptyList
-            },
-            Value::EmptyQuotedList => {
-                // EmptyQuotedList
-                Value::EmptyQuotedList
-            },
-        }
-    }
-}
+// impl<'c> Clone for Value<'c> {
+//     fn clone(&self) -> Value<'c> {
+//         self.clone()
+//     }
+// }
 impl<'c> From<()> for Value<'c> {
     fn from(_: ()) -> Value<'c> {
         Value::Nil
@@ -341,11 +381,11 @@ impl<'c> From<Cell<'c>> for Value<'c> {
         cell.as_value()
     }
 }
-impl<'c> From<List<'c>> for Value<'c> {
-    fn from(list: List<'c>) -> Value<'c> {
-        list.as_value()
-    }
-}
+// impl<'c> From<List<'c>> for Value<'c> {
+//     fn from(list: List<'c>) -> Value<'c> {
+//         list.as_value()
+//     }
+// }
 
 impl<'c> AsRef<Value<'c>> for Value<'c> {
     fn as_ref(&self) -> &Value<'c> {
@@ -372,11 +412,16 @@ impl<'c> PartialEq<Option<Value<'c>>> for Value<'c> {
         }
     }
 }
-impl<'c> PartialEq<List<'c>> for Value<'c> {
-    fn eq(&self, other: &List<'c>) -> bool {
+impl<'c> PartialEq<Cell<'c>> for Value<'c> {
+    fn eq(&self, other: &Cell<'c>) -> bool {
         other.as_value() == self
     }
 }
+// impl<'c> PartialEq<List<'c>> for Value<'c> {
+//     fn eq(&self, other: &List<'c>) -> bool {
+//         other.as_value() == self
+//     }
+// }
 
 impl<'c> PartialEq<&mut Value<'c>> for Value<'c> {
     fn eq(&self, other: &&mut Value<'c>) -> bool {
@@ -462,8 +507,8 @@ impl<'c> AsCell<'c> for Value<'c> {
         match self {
             Value::Symbol(h) => Cell::quoted(Some(h.unquote()), false),
             Value::QuotedSymbol(h) => Cell::quoted(Some(h.quote()), true),
-            Value::List(h) => h.as_cell(),
-            Value::QuotedList(h) => h.as_cell(),
+            Value::List(h) => h.clone(),
+            Value::QuotedList(h) => h.clone(),
             _ => Cell::new(self.clone()),
         }
     }
@@ -476,7 +521,7 @@ impl<'c> AsCell<'c> for &Value<'c> {
             Value::QuotedSymbol(h) => Cell::quoted(Some(h.quote()), true),
             Value::List(h) => h.as_cell(),
             Value::QuotedList(h) => h.as_cell(),
-            _ => Cell::new(value)
+            _ => Cell::new(value),
         }
     }
 }

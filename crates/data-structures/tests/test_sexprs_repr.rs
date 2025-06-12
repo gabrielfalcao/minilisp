@@ -2,11 +2,11 @@
 use k9::assert_equal;
 #[rustfmt::skip]
 use minilisp_data_structures::{
-    AsNumber, AsCell, AsList, AsValue, Quotable,
+    AsNumber, AsCell, AsValue, Quotable,
 };
 #[rustfmt::skip]
 use minilisp_data_structures::{
-    Cell, List, Value,
+    Cell, Value,
 };
 #[rustfmt::skip]
 use minilisp_data_structures::{append, car, cdr, cons, list, setcar, setcdr};
@@ -21,22 +21,22 @@ fn test_repr() {
         let mut cell = Cell::from("a");
         cell.add(&Cell::from("b"));
         cell.add(&Cell::from("c"));
-        Value::List(cell.as_list())
+        Value::List(cell)
     };
     let list_2 = {
         let mut cell = Cell::from(7);
         cell.add(&Cell::from("foo".to_string()));
-        Value::List(cell.as_list())
+        Value::List(cell)
     };
     let list_3 = {
         let mut cell = Cell::from(4.12);
         cell.add(&Cell::from(31178));
-        Value::List(Cell::from(Value::List(cell.as_list())).as_list())
+        Value::List(Cell::from(Value::List(cell)))
     };
     let list_of_list = {
         let mut cell = Cell::from(4.12);
         cell.add(&Cell::from(31178));
-        Value::List(cell.as_list()).wrap_in_list()
+        Value::List(cell).wrap_in_list()
     };
 
     assert_equal!(list_1.to_string(), r#"(a b c)"#);

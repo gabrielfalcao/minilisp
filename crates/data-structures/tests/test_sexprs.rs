@@ -2,11 +2,11 @@
 use k9::assert_equal;
 #[rustfmt::skip]
 use minilisp_data_structures::{
-    AsNumber, AsCell, AsList, AsValue, Quotable,
+    AsNumber, AsCell, AsValue, Quotable,
 };
 #[rustfmt::skip]
 use minilisp_data_structures::{
-    Cell, List, Value,
+    Cell, Value,
 };
 #[rustfmt::skip]
 use minilisp_data_structures::{append, car, cdr, cons, list, setcar, setcdr};
@@ -18,7 +18,7 @@ fn test_car_cdr() {
         let mut cell = Cell::from("a");
         cell.add(&Cell::from("b"));
         cell.add(&Cell::from("c"));
-        cell.as_list()
+        cell
     });
     // (car '(a b c)) => a
     assert_equal!(car(&list), Value::symbol("a"));
@@ -29,7 +29,7 @@ fn test_car_cdr() {
         {
             let mut cell = Cell::from("b");
             cell.add(&Cell::from("c"));
-            cell.as_list()
+            cell
         }
     );
     assert_equal!(cdr(&list).to_string(), r#"(b c)"#);
@@ -41,10 +41,10 @@ fn test_car_cdr() {
 #[test]
 fn test_cdr_nil_single_element_list() {
     // (cdr '(x)) => nil
-    assert_equal!(cdr(&Value::List(Cell::from("x").as_list())), List::default());
+    assert_equal!(cdr(&Value::List(Cell::from("x"))), Value::nil());
     assert_equal!(
-        cdr(&Value::QuotedList(Cell::from("x").as_list())),
-        List::default()
+        cdr(&Value::QuotedList(Cell::from("x"))),
+        Value::nil()
     );
 }
 
@@ -60,10 +60,10 @@ fn test_car_and_cdr_nil_empty_list() {
 fn test_car_and_cdr_nil_single_nil_element_list() {
     // (car '(nil)) => nil
     // (cdr '(nil)) => nil
-    assert_equal!(car(&Value::List(Cell::nil().as_list())), List::default());
-    assert_equal!(car(&Value::QuotedList(Cell::nil().as_list())), List::default());
-    assert_equal!(cdr(&Value::List(Cell::nil().as_list())), List::default());
-    assert_equal!(cdr(&Value::QuotedList(Cell::nil().as_list())), List::default());
+    assert_equal!(car(&Value::List(Cell::nil())), Value::nil());
+    assert_equal!(car(&Value::QuotedList(Cell::nil())), Value::nil());
+    assert_equal!(cdr(&Value::List(Cell::nil())), Value::nil());
+    assert_equal!(cdr(&Value::QuotedList(Cell::nil())), Value::nil());
 }
 
 #[test]
@@ -74,15 +74,15 @@ fn test_list_quoted_sexprs() {
         let mut cell = Cell::from(Value::symbol("a").quote());
         cell.add(&Cell::from(Value::symbol("b").quote()));
         cell.add(&Cell::from(Value::symbol("c").quote()));
-        Value::QuotedList(cell.as_list())
+        Value::QuotedList(cell)
     };
     let list_2 = {
         let mut cell = Cell::from(Value::symbol("x").quote());
         cell.add(&Cell::from(Value::symbol("y").quote()));
         cell.add(&Cell::from(Value::symbol("z").quote()));
-        let mut cell = Cell::from(Value::QuotedList(cell.as_list()));
+        let mut cell = Cell::from(Value::QuotedList(cell));
         cell.add(&Cell::from(Value::integer(3)));
-        Value::QuotedList(cell.as_list())
+        Value::QuotedList(cell)
     };
 
     // (list 'a 'b 'c) => '(a b c)
@@ -96,7 +96,7 @@ fn test_list_quoted_sexprs() {
             let mut cell = Cell::from(Value::symbol("a"));
             cell.add(&Cell::from(Value::symbol("b")));
             cell.add(&Cell::from(Value::symbol("c")));
-            cell.as_list()
+            cell
         }
     );
     // (list '(x y z) 3) => '((x y z) 3)
@@ -118,7 +118,7 @@ fn test_list_quoted_sexprs() {
                 cell.into()
             }));
             cell.add(&Cell::from(Value::integer(3)));
-            cell.as_list()
+            cell
         }
     );
 }

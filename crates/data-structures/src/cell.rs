@@ -4,9 +4,10 @@ use std::ops::Deref;
 
 use unique_pointer::{RefCounter, UniquePointer};
 
-use crate::{
-    AsList, AsSymbol, AsValue, List, ListIterator, Quotable, Symbol, Value,
-};
+use crate::{AsSymbol, AsValue, Quotable, Symbol, Value};
+pub trait ListIterator<'c, T: AsCell<'c>>: IntoIterator<Item = T> {
+    fn list_iter(&self) -> Cell<'c>;
+}
 
 pub trait AsCell<'c>: Quotable {
     //: ListValue {
@@ -55,6 +56,19 @@ impl<'c> Cell<'c> {
 
     pub fn is_nil(&self) -> bool {
         self.head.is_null() && self.tail.is_null()
+    }
+
+    pub fn unwrap_value(&self) -> Value<'c> {
+        if self.tail.is_null() {
+            match self.head() {
+                Some(head) => head.unwrap_list(),
+                None => Value::Nil,
+            }
+        } else if self.quoted {
+            Value::QuotedList(self.as_cell())
+        } else {
+            Value::List(self.as_cell())
+        }
     }
 
     pub fn new<T: AsValue<'c>>(item: T) -> Cell<'c> {
@@ -218,15 +232,15 @@ impl<'c, T: Quotable + AsCell<'c>, const N: usize> AsCell<'c> for [T; N] {
     }
 }
 
-impl<'c> AsList<'c> for Cell<'c> {
-    fn as_list(&self) -> List<'c> {
-        if self.is_nil() {
-            List::Empty(self.is_quoted())
-        } else {
-            List::Linked(self.clone(), self.is_quoted())
-        }
-    }
-}
+// impl<'c> AsList<'c> for Cell<'c> {
+//     fn as_cell(&self) -> List<'c> {
+//         if self.is_nil() {
+//             List::Empty(self.is_quoted())
+//         } else {
+//             List::Linked(self.clone(), self.is_quoted())
+//         }
+//     }
+// }
 
 impl<'c, T: AsCell<'c>, const N: usize> ListIterator<'c, T> for [T; N] {
     fn list_iter(&self) -> Cell<'c> {
@@ -333,11 +347,11 @@ impl<'c> Clone for Cell<'c> {
     fn clone(&self) -> Cell<'c> {
         let mut cell = Cell::nil();
         cell.refs = self.refs.clone();
-        if self.head.is_not_null() {
-            cell.head = self.head.clone();
+        if let Some(head) = self.head() {
+            cell.head.write(head)
         }
-        if self.tail.is_not_null() {
-            cell.tail = self.tail.clone();
+        if let Some(tail) = self.tail().map(Clone::clone) {
+            cell.tail.write(tail)
         }
         cell
     }
@@ -437,13 +451,13 @@ impl<'c> AsValue<'c> for Cell<'c> {
     fn as_value(&self) -> Value<'c> {
         if self.tail.is_null() {
             match self.head() {
-                Some(head) => head,
+                Some(head) => head.unwrap_list(),
                 None => Value::Nil,
             }
         } else if self.quoted {
-            Value::QuotedList(self.as_list())
+            Value::QuotedList(self.clone())
         } else {
-            Value::List(self.as_list())
+            Value::List(self.clone())
         }
     }
 }

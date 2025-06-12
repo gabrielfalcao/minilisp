@@ -1,7 +1,7 @@
 #![allow(unused)]
 use k9::assert_equal;
 use minilisp_data_structures::{
-    car, cdr, cons, list, Cell, Value, List
+    car, cdr, cons, list, Cell, Value
 };
 
 #[test]
