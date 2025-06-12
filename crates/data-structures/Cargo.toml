@@ -62,3 +62,8 @@ path ="tests/test_sexprs.rs"
 [[test]]
 name ="test_sexprs_repr"
 path ="tests/test_sexprs_repr.rs"
+
+
+[[test]]
+name = "test_value_repr"
+path = "tests/test_value_repr.rs"

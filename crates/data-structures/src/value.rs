@@ -49,6 +49,10 @@ impl<'c> Value<'c> {
         Value::Symbol(sym.as_symbol())
     }
 
+    pub fn quoted_symbol<T: AsSymbol<'c>>(sym: T) -> Value<'c> {
+        Value::QuotedSymbol(sym.as_symbol())
+    }
+
     pub fn string<T: ToString>(value: T) -> Value<'c> {
         Value::String(Cow::from(value.to_string()))
     }
@@ -77,12 +81,24 @@ impl<'c> Value<'c> {
         }
     }
 
+    pub fn quoted_list<T: AsCell<'c>>(item: T) -> Value<'c> {
+        Value::QuotedList(item.as_cell())
+    }
+
     pub fn is_nil(&self) -> bool {
         if *self == Value::Nil {
             true
         } else {
             false
         }
+    }
+
+    pub fn empty_list() -> Value<'c> {
+        Value::EmptyList
+    }
+
+    pub fn empty_quoted_list() -> Value<'c> {
+        Value::EmptyQuotedList
     }
 
     pub fn quote(&self) -> Value<'c> {
@@ -178,7 +194,7 @@ impl Display for Value<'_> {
             match self {
                 Value::T => "t".to_string(),
                 Value::Nil => "nil".to_string(),
-                Value::Byte(h) => format!("{}", h),
+                Value::Byte(h) => format!("0x{:02x}", h),
                 Value::Float(h) => format!("{}", h),
                 Value::Integer(h) => format!("{}", h),
                 Value::String(h) => format!("{:#?}", h),
@@ -203,7 +219,7 @@ impl Debug for Value<'_> {
             match self {
                 Value::T => "t".to_string(),
                 Value::Nil => "nil".to_string(),
-                Value::Byte(h) => format!("{:#?}", h),
+                Value::Byte(h) => format!("0x{:02x}", h),
                 Value::Float(h) => format!("{:#?}", h),
                 Value::Integer(h) => format!("{:#?}", h),
                 Value::String(h) => format!("{:#?}", h),
