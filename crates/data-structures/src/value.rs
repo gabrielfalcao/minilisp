@@ -85,81 +85,23 @@ impl<'c> Value<'c> {
         }
     }
 
-    // pub(crate) fn extended<'l>(&self) -> Value<'l> {
-    //     let value = match self {
-    //         Value::String(value) => {
-    //             // String
-    //             Value::String(value.clone())
-    //         },
-    //         Value::Symbol(value) => {
-    //             // Symbol
-    //             Value::Symbol(value.clone())
-    //         },
-    //         Value::QuotedSymbol(value) => {
-    //             // QuotedSymbol
-    //             Value::QuotedSymbol(value.clone())
-    //         },
-    //         Value::Byte(value) => {
-    //             // Byte
-    //             Value::Byte(value.clone())
-    //         },
-    //         Value::UnsignedInteger(value) => {
-    //             // UnsignedInteger
-    //             Value::UnsignedInteger(value.clone())
-    //         },
-    //         Value::Integer(value) => {
-    //             // Integer
-    //             Value::Integer(value.clone())
-    //         },
-    //         Value::Float(value) => {
-    //             // Float
-    //             Value::Float(value.clone())
-    //         },
-    //         Value::List(value) => {
-    //             // List
-    //             Value::List(value.clone())
-    //         },
-    //         Value::QuotedList(value) => {
-    //             // QuotedList
-    //             Value::QuotedList(value.clone())
-    //         },
-    //         Value::Nil => {
-    //             // Nil
-    //             Value::Nil
-    //         },
-    //         Value::T => {
-    //             // T
-    //             Value::T
-    //         },
-    //         Value::EmptyList => {
-    //             // EmptyList
-    //             Value::EmptyList
-    //         },
-    //         Value::EmptyQuotedList => {
-    //             // EmptyQuotedList
-    //             Value::EmptyQuotedList
-    //         },
-    //     };
-    //     unsafe { std::mem::transmute::<Value<'_>, Value<'l>>(value) }
-    // }
-
     pub fn quote(&self) -> Value<'c> {
         let value = match self {
             Value::Symbol(h) => {
                 assert!(!h.is_quoted());
-                Value::QuotedSymbol(h.quote())
+                Value::QuotedSymbol(h.clone().quote())
             },
             Value::List(h) => {
                 assert!(!h.is_quoted());
-                Value::QuotedList(h.quote())
+                Value::QuotedList(h.clone().quote())
             },
             Value::QuotedSymbol(h) => {
                 assert!(h.is_quoted());
-                Value::QuotedSymbol(h.quote())
+                Value::QuotedSymbol(h.clone().quote())
             },
             Value::QuotedList(h) => {
                 assert!(h.is_quoted());
-                Value::QuotedList(h.quote())
+                Value::QuotedList(h.clone().quote())
             },
             // _ => self.clone(),
             _ => self.clone(),
@@ -191,12 +133,11 @@ impl<'c> Value<'c> {
     }
 
     pub fn wrap_in_list(&self) -> Value<'c> {
-        let value = if self.is_quoted() {
-            Value::QuotedList(self.as_cell())
+        if self.is_quoted() {
+            Value::QuotedList(Cell::new(self.clone()))
         } else {
-            Value::List(self.as_cell())
-        };
-        value.clone()
+            Value::List(Cell::new(self.clone()))
+        }
     }
 
     pub fn unwrap_list(&self) -> Value<'c> {
@@ -210,31 +151,6 @@ impl<'c> Value<'c> {
                 }
             },
             _ => self.clone(),
-        }
-    }
-}
-
-impl<'c> Quotable for Value<'c> {
-    fn is_quoted(&self) -> bool {
-        match self {
-            Value::Symbol(h) => {
-                assert!(!h.is_quoted());
-                false
-            },
-            Value::List(h) => {
-                assert!(!h.is_quoted());
-                false
-            },
-            Value::QuotedSymbol(h) => {
-                assert!(h.is_quoted());
-                true
-            },
-            Value::QuotedList(h) => {
-                assert!(h.is_quoted());
-                true
-            },
-            Value::EmptyQuotedList => true,
-            _ => false,
         }
     }
 }
@@ -265,12 +181,14 @@ impl Display for Value<'_> {
                 Value::Byte(h) => format!("{}", h),
                 Value::Float(h) => format!("{}", h),
                 Value::Integer(h) => format!("{}", h),
-                Value::String(h) => format!("{}", h),
-                Value::Symbol(h) => format!("{}", h),
+                Value::String(h) => format!("{:#?}", h),
+                Value::Symbol(h) => format!("{}", format!("{}", h)),
+                Value::QuotedSymbol(h) => format!("'{}", format!("{}", h)),
                 Value::UnsignedInteger(h) => format!("{}", h),
-                Value::List(h) => format!("{}", h),
-                Value::QuotedList(h) => format!("'{}", h),
-                Value::QuotedSymbol(h) => format!("'{}", h),
+                Value::List(h) => format!("({})", format!("{}", h)),
+
+                Value::QuotedList(h) => format!("'({})", format!("{}", h)),
+
                 Value::EmptyList => format!("()"),
                 Value::EmptyQuotedList => format!("'()"),
             }
@@ -283,17 +201,17 @@ impl Debug for Value<'_> {
             f,
             "{}",
             match self {
-                Value::Nil => "nil".to_string(),
                 Value::T => "t".to_string(),
+                Value::Nil => "nil".to_string(),
+                Value::Byte(h) => format!("{:#?}", h),
+                Value::Float(h) => format!("{:#?}", h),
+                Value::Integer(h) => format!("{:#?}", h),
                 Value::String(h) => format!("{:#?}", h),
-                Value::Byte(h) => format!("{}u8", h),
-                Value::UnsignedInteger(h) => format!("{}", h),
-                Value::Integer(h) => format!("{}", h),
-                Value::Float(h) => format!("{}", h),
                 Value::Symbol(h) => format!("{}", h),
-                Value::List(h) => format!("{}", h),
-                Value::QuotedList(h) => format!("'{}", h),
-                Value::QuotedSymbol(h) => format!("'{}", h),
+                Value::QuotedSymbol(h) => format!("'{}", format!("{:#?}", h)),
+                Value::UnsignedInteger(h) => format!("{:#?}", h),
+                Value::List(h) => format!("({})", format!("{:#?}", h)),
+                Value::QuotedList(h) => format!("'({})", format!("{:#?}", h)),
                 Value::EmptyList => format!("()"),
                 Value::EmptyQuotedList => format!("'()"),
             }
@@ -507,8 +425,22 @@ impl<'c> AsCell<'c> for Value<'c> {
         match self {
             Value::Symbol(h) => Cell::quoted(Some(h.unquote()), false),
             Value::QuotedSymbol(h) => Cell::quoted(Some(h.quote()), true),
-            Value::List(h) => h.clone(),
-            Value::QuotedList(h) => h.clone(),
+            Value::List(h) => {
+                let mut cell = Cell::nil();
+                for item in h.clone().into_iter() {
+                    cell.add(&Cell::new(item));
+                }
+                dbg!(&cell);
+                cell
+            },
+            Value::QuotedList(h) => {
+                let mut cell = Cell::nil().quote();
+                for item in h.clone().into_iter() {
+                    cell.add(&Cell::new(item));
+                }
+                dbg!(&cell);
+                cell
+            },
             _ => Cell::new(self.clone()),
         }
     }
@@ -516,13 +448,7 @@ impl<'c> AsCell<'c> for Value<'c> {
 impl<'c> AsCell<'c> for &Value<'c> {
     fn as_cell(&self) -> Cell<'c> {
         let value = UniquePointer::read_only(*self).read();
-        match &value {
-            Value::Symbol(h) => Cell::quoted(Some(h.unquote()), false),
-            Value::QuotedSymbol(h) => Cell::quoted(Some(h.quote()), true),
-            Value::List(h) => h.as_cell(),
-            Value::QuotedList(h) => h.as_cell(),
-            _ => Cell::new(value),
-        }
+        value.as_cell()
     }
 }
 // impl<'c> AsCell<'c> for Value<'c> {
@@ -547,3 +473,57 @@ impl<'c> AsCell<'c> for &Value<'c> {
 //         }
 //     }
 // }
+impl<'c> Quotable for Value<'c> {
+    fn set_quoted(&mut self, quoted: bool) {
+        match self {
+            Value::Symbol(h) =>
+                if quoted {
+                    *self = Value::QuotedSymbol(h.clone())
+                },
+            Value::List(h) =>
+                if quoted {
+                    *self = Value::QuotedList(h.clone())
+                },
+            Value::QuotedSymbol(h) =>
+                if !quoted {
+                    *self = Value::Symbol(h.clone())
+                },
+            Value::QuotedList(h) =>
+                if !quoted {
+                    *self = Value::List(h.clone())
+                },
+            Value::EmptyList =>
+                if quoted {
+                    *self = Value::EmptyList
+                },
+            Value::EmptyQuotedList =>
+                if quoted {
+                    *self = Value::EmptyQuotedList
+                },
+            _ => {},
+        }
+    }
+
+    fn is_quoted(&self) -> bool {
+        match self {
+            Value::Symbol(h) => {
+                assert!(!h.is_quoted());
+                false
+            },
+            Value::List(h) => {
+                assert!(!h.is_quoted());
+                false
+            },
+            Value::QuotedSymbol(h) => {
+                assert!(h.is_quoted());
+                true
+            },
+            Value::QuotedList(h) => {
+                assert!(h.is_quoted());
+                true
+            },
+            Value::EmptyQuotedList => true,
+            _ => false,
+        }
+    }
+}

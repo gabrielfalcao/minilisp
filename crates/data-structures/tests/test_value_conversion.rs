@@ -14,21 +14,19 @@ fn value_from_unit() {
 }
 #[test]
 fn value_from_str() {
+    assert_equal!(Value::from("str"), Value::String(Cow::from("str")));
+    assert_display_equal!(Value::from("str"), r#""str""#);
     let value = "str".to_string().leak();
-    assert_equal!(Value::from(value), Value::String(Cow::from("str")));
-    let value = "str".to_string().leak();
-    assert_display_equal!(Value::from(value), "str");
-    let value = "str".to_string().leak();
-    assert_debug_equal!(Value::from(value), "\"str\"");
+    assert_debug_equal!(Value::from(value), r#""str""#);
 }
 #[test]
 fn value_from_string() {
     let value = "string".to_string();
-    assert_equal!(Value::from(value).to_string(), "string");
+    assert_equal!(Value::from(value).to_string(), r#""string""#);
     let value = "string".to_string();
-    assert_display_equal!(Value::from(value), "string");
+    assert_display_equal!(Value::from(value), r#""string""#);
     let value = "string".to_string();
-    assert_debug_equal!(Value::from(value), "\"string\"");
+    assert_debug_equal!(Value::from(value), r#""string""#);
 }
 #[test]
 fn value_display_nil() {

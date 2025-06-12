@@ -48,12 +48,6 @@ impl<'c> Cell<'c> {
         cell
     }
 
-    pub fn quote(&self) -> Cell<'c> {
-        let mut cell = self.clone();
-        cell.quoted = true;
-        cell
-    }
-
     pub fn is_nil(&self) -> bool {
         self.head.is_null() && self.tail.is_null()
     }
@@ -83,6 +77,9 @@ impl<'c> Cell<'c> {
     }
 
     pub fn add(&mut self, new: &Cell<'c>) {
+        if new.is_nil() {
+            return;
+        }
         let mut new = new.clone();
         self.incr_ref();
 
@@ -95,10 +92,13 @@ impl<'c> Cell<'c> {
             }
 
             // and new.tail *IS NOT* null
-            if !new.tail.is_null() {
+            if new.tail.is_not_null() {
                 let tail = new.tail.inner_mut();
-                tail.head.write_ref(new.head.inner_ref());
-                self.swap_refs(&mut new);
+                // if new.tail.head *IS NOT* null
+                if new.head.is_not_null() {
+                    // write new.tail.head in tail.head
+                    tail.head.write_ref(new.head.inner_ref());
+                }
             }
             self.tail = UniquePointer::from(new);
         } else {
@@ -177,14 +177,6 @@ impl<'c> Cell<'c> {
         };
     }
 
-    pub(crate) fn swap_refs(&mut self, other: &mut Self) {
-        self.refs = {
-            let refs = other.refs.clone();
-            other.refs = self.refs.clone();
-            refs
-        };
-    }
-
     pub fn to_vec(&self) -> Vec<Value<'c>> {
         Vec::<Value<'c>>::from_iter(self.clone().into_iter())
     }
@@ -215,10 +207,49 @@ impl<'c> Cell<'c> {
             self.tail.drop_in_place();
         }
     }
+
+    fn repr(&self) -> String {
+        [
+            "Cell".to_string(),
+            format!(
+                "[{}]",
+                if self.is_nil() {
+                    format!("null")
+                } else {
+                    [
+                        if self.head.is_null() {
+                            format!("head: {}", "null")
+                        } else {
+                            format!(
+                                "head={:#?}",
+                                self.head().unwrap_or_default()
+                            )
+                        },
+                        if self.tail.is_null() {
+                            format!("tail: {}", "null")
+                        } else {
+                            format!(
+                                "tail={:#?}",
+                                self.tail()
+                                    .map(Clone::clone)
+                                    .unwrap_or_default()
+                            )
+                        },
+                    ]
+                    .join(" | ")
+                }
+            ),
+        ]
+        .join("")
+    }
 }
 impl<'c> Quotable for Cell<'c> {
     fn is_quoted(&self) -> bool {
         self.quoted
+    }
+
+    fn set_quoted(&mut self, quoted: bool) {
+        self.quoted = quoted;
     }
 }
 
@@ -364,42 +395,7 @@ impl<'c> Drop for Cell<'c> {
 
 impl std::fmt::Debug for Cell<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            [
-                "Cell".to_string(),
-                format!(
-                    "[{}]",
-                    if self.is_nil() {
-                        format!("null")
-                    } else {
-                        [
-                            if self.head.is_null() {
-                                format!("head: {}", "null")
-                            } else {
-                                format!(
-                                    "head={:#?}",
-                                    self.head().unwrap_or_default()
-                                )
-                            },
-                            if self.tail.is_null() {
-                                format!("tail: {}", "null")
-                            } else {
-                                format!(
-                                    "tail={:#?}",
-                                    self.tail()
-                                        .map(Clone::clone)
-                                        .unwrap_or_default()
-                                )
-                            },
-                        ]
-                        .join(" | ")
-                    }
-                )
-            ]
-            .join("")
-        )
+        write!(f, "{}", self.to_string())
     }
 }
 impl std::fmt::Display for Cell<'_> {
@@ -407,23 +403,28 @@ impl std::fmt::Display for Cell<'_> {
         write!(
             f,
             "{}",
-            [
-                if self.head.is_null() {
-                    String::new()
-                } else {
-                    self.head().unwrap_or_default().to_string()
-                },
-                if self.tail.is_null() {
-                    String::new()
-                } else {
-                    self.tail()
-                        .map(Clone::clone)
-                        .unwrap_or_default()
-                        .to_string()
-                },
-            ]
-            .join(" ")
-            .trim()
+            if self.is_nil() {
+                "".to_string()
+            } else {
+                [
+                    if self.head.is_null() {
+                        String::new()
+                    } else {
+                        self.head().unwrap_or_default().to_string()
+                    },
+                    if self.tail.is_null() {
+                        String::new()
+                    } else {
+                        self.tail()
+                            .map(Clone::clone)
+                            .unwrap_or_default()
+                            .to_string()
+                    },
+                ]
+                .join(" ")
+                .trim()
+                .to_string()
+            }
         )
     }
 }

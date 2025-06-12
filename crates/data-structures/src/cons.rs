@@ -15,9 +15,15 @@ pub fn append<'c, T: AsCell<'c>, I: Iterator<Item = T>>(
 pub fn makelist<'c, V: AsValue<'c>>(value: V, count: usize) -> Cell<'c> {
     Cell::nil()
 }
-pub fn car<'c, T: AsCell<'c>>(cell: T) -> Value<'c> {
-    let cell = cell.as_cell();
-    cell.unwrap_value()
+pub fn car<'c>(value: &Value<'c>) -> Value<'c> {
+    match value {
+        Value::List(cell) | Value::QuotedList(cell) => {
+            cell.head().unwrap_or_default()
+        },
+        _ => {
+            Value::Nil
+        }
+    }
 }
 
 pub fn cdr<'c, T: AsCell<'c>>(item: T) -> Value<'c> {
@@ -28,7 +34,7 @@ pub fn cdr<'c, T: AsCell<'c>>(item: T) -> Value<'c> {
         Cell::nil().as_value()
     }
 }
-pub fn list<'c, C: AsCell<'c>, T: ListIterator<'c, C>>(list: T) -> Value<'c> {
+pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
     let mut cell = Cell::nil();
     for item in list.into_iter() {
         cell.add(&item.as_cell());

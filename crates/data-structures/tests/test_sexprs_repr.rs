@@ -14,7 +14,7 @@ use minilisp_data_structures::{append, car, cdr, cons, list, setcar, setcdr};
 #[test]
 fn test_repr() {
     // (a b c)
-    // (7
+    // (7 "foo")
     // ((4.12 31178))
 
     let list_1 = {
@@ -25,7 +25,8 @@ fn test_repr() {
     };
     let list_2 = {
         let mut cell = Cell::from(7);
-        cell.add(&Cell::from("foo".to_string()));
+        cell.add(&Cell::from(Value::string("foo")));
+        // cell.add(&Cell::from("foo".to_string()));
         Value::List(cell)
     };
     let list_3 = {
@@ -40,6 +41,7 @@ fn test_repr() {
     };
 
     assert_equal!(list_1.to_string(), r#"(a b c)"#);
+    assert_equal!(list_2, list([Value::integer(7), Value::string("foo")]));
     assert_equal!(list_2.to_string(), r#"(7 "foo")"#);
     assert_equal!(list_3.to_string(), r#"((4.12 31178))"#);
     assert_equal!(list_of_list.to_string(), r#"((4.12 31178))"#);

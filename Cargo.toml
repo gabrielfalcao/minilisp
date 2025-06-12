@@ -7,6 +7,8 @@ members = [
     "crates/parser",
     "crates/repl",
     "crates/vm",
+    "crates/macros-core",
+    "crates/decorators",
 ]
 default-members = ["crates/repl"]
 
@@ -47,5 +49,7 @@ minilisp-formatter = { path = "crates/formatter" }
 minilisp-parser = { path = "crates/parser" }
 minilisp-repl = { path = "crates/repl" }
 minilisp-data-structures = { path = "crates/data-structures" }
+minilisp-macros-core = { path = "crates/macros-core" }
+minilisp-decorators = { path = "crates/decorators" }
 minilisp-vm = { path = "crates/vm" }
 k9 = "0.12.0"

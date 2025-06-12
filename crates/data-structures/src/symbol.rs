@@ -77,7 +77,7 @@ impl Display for Symbol<'_> {
 }
 impl Debug for Symbol<'_> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "#[{}]#", self.to_string())
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -119,6 +119,9 @@ impl<'c> AsSymbol<'c> for &str {
 impl<'c> Quotable for Symbol<'c> {
     fn is_quoted(&self) -> bool {
         self.quoted
+    }
+    fn set_quoted(&mut self, quoted: bool) {
+        self.quoted = quoted;
     }
 }
 impl<'c> AsValue<'c> for Symbol<'c> {

@@ -10,11 +10,10 @@ fn test_iterator() {
 
     assert_equal!(
         format!("{:#?}", &head),
-        "Cell[head=\"head\" | tail=Cell[head=10 | tail=Cell[head=x | tail: null]]]"
-
+        r#""head" 10 x"#
     );
     assert_equal!(
         head.into_iter().map(|value| value.to_string()).collect::<Vec<String>>(),
-        vec!["head", "10", "x"]
+        vec![r#""head""#, "10", "x"]
     );
 }

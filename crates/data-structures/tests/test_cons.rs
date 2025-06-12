@@ -26,13 +26,13 @@ fn test_list() {
 
 #[test]
 fn test_car() {
-    let cell = list([Value::from("head"), Value::from("middle"), Value::from(33u8), Value::from("tail")]);
-    assert_equal!(cell.head(), Some(Value::from("head")));
-    assert_equal!(car(&cell), Value::from("head"));
+    let value = list([Value::from("head"), Value::from("middle"), Value::from(33u8), Value::from("tail")]);
+    assert_equal!(value.head(), Some(Value::from("head")));
+    assert_equal!(car(&value), Value::from("head"));
 }
 
 #[test]
 fn test_cdr() {
-    let cell = list([Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]);
-    assert_equal!(cdr(&cell), list([Value::symbol("b"), Value::symbol("c")]));
+    let value = list([Value::symbol("a"), Value::symbol("b"), Value::symbol("c")]);
+    assert_equal!(cdr(&value), list([Value::symbol("b"), Value::symbol("c")]));
 }

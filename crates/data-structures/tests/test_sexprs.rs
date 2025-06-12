@@ -32,7 +32,11 @@ fn test_car_cdr() {
             cell
         }
     );
-    assert_equal!(cdr(&list).to_string(), r#"(b c)"#);
+    assert_equal!(cdr(&list), Value::List({
+        let mut cell = Cell::from("b");
+        cell.add(&Cell::from("c"));
+        cell
+    }));
     // (car (cdr '(a b c))) => b
     assert_equal!(car(&cdr(&list)), Value::symbol("b"));
     assert_equal!(car(&cdr(&list)).to_string(), r#"b"#);
@@ -88,9 +92,9 @@ fn test_list_quoted_sexprs() {
     // (list 'a 'b 'c) => '(a b c)
     assert_equal!(
         list([
-            Cell::from(Value::symbol("a").quote()),
-            Cell::from(Value::symbol("b").quote()),
-            Cell::from(Value::symbol("c").quote()),
+            Value::symbol("a").quote(),
+            Value::symbol("b").quote(),
+            Value::symbol("c").quote(),
         ]),
         {
             let mut cell = Cell::from(Value::symbol("a"));
@@ -102,13 +106,13 @@ fn test_list_quoted_sexprs() {
     // (list '(x y z) 3) => '((x y z) 3)
     assert_equal!(
         list([
-            Cell::from(Value::QuotedList({
+            Value::QuotedList({
                 let mut cell = Cell::from(Value::symbol("x"));
                 cell.add(&Cell::from(Value::symbol("y")));
                 cell.add(&Cell::from(Value::symbol("z")));
                 cell.into()
-            })),
-            Cell::from(Value::integer(3))
+            }),
+            Value::integer(3)
         ]),
         {
             let mut cell = Cell::from(Value::List({
