@@ -89,7 +89,7 @@ fn test_list_quoted_sexprs() {
         Value::QuotedList(cell)
     };
 
-    // (list 'a 'b 'c) => '(a b c)
+    // (list 'a 'b 'c) => (a b c)
     assert_equal!(
         list([
             Value::symbol("a").quote(),
@@ -97,9 +97,9 @@ fn test_list_quoted_sexprs() {
             Value::symbol("c").quote(),
         ]),
         {
-            let mut cell = Cell::from(Value::symbol("a"));
-            cell.add(&Cell::from(Value::symbol("b")));
-            cell.add(&Cell::from(Value::symbol("c")));
+            let mut cell = Cell::from(Value::quoted_symbol("a"));
+            cell.add(&Cell::from(Value::quoted_symbol("b")));
+            cell.add(&Cell::from(Value::quoted_symbol("c")));
             cell
         }
     );
@@ -120,7 +120,7 @@ fn test_list_quoted_sexprs() {
                 cell.add(&Cell::from(Value::symbol("y")));
                 cell.add(&Cell::from(Value::symbol("z")));
                 cell.into()
-            }));
+            }).quote());
             cell.add(&Cell::from(Value::integer(3)));
             cell
         }

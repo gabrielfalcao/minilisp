@@ -1,5 +1,5 @@
 #![allow(unused)]
-use crate::{AsCell, AsValue, Cell, Symbol, Value, ListIterator, Quotable};
+use crate::{AsCell, AsValue, Cell, ListIterator, Quotable, Symbol, Value};
 
 pub fn cons<'c, T: AsCell<'c>>(head: T, tail: &mut Cell<'c>) -> Cell<'c> {
     let mut head = head.as_cell();
@@ -17,21 +17,19 @@ pub fn makelist<'c, V: AsValue<'c>>(value: V, count: usize) -> Cell<'c> {
 }
 pub fn car<'c>(value: &Value<'c>) -> Value<'c> {
     match value {
-        Value::List(cell) | Value::QuotedList(cell) => {
-            cell.head().unwrap_or_default()
-        },
-        _ => {
-            Value::Nil
-        }
+        Value::List(cell) | Value::QuotedList(cell) =>
+            cell.head().unwrap_or_default(),
+        _ => Value::Nil,
     }
 }
 
-pub fn cdr<'c, T: AsCell<'c>>(item: T) -> Value<'c> {
-    let cell = item.as_cell();
-    if let Some(tail) = cell.tail() {
-        tail.clone().as_value()
-    } else {
-        Cell::nil().as_value()
+pub fn cdr<'c>(item: &Value<'c>) -> Value<'c> {
+    match item {
+        Value::List(ref h) | Value::QuotedList(ref h) => h
+            .tail()
+            .map(|cell| Value::list(cell.clone()))
+            .unwrap_or_default(),
+        _ => Value::Nil,
     }
 }
 pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {

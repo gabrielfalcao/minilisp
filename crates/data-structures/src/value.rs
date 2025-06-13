@@ -26,7 +26,7 @@ pub trait AsValue<'c>: Quotable {
     fn as_value(&self) -> Value<'c>;
 }
 
-#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq)]
+#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash)]
 pub enum Value<'c> {
     #[default]
     Nil,
@@ -97,6 +97,28 @@ impl<'c> Value<'c> {
             true
         } else {
             false
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Value::List(h) => h.is_nil(),
+            Value::QuotedList(h) => h.is_nil(),
+            Value::EmptyList => true,
+            Value::EmptyQuotedList => true,
+            Value::Nil => true,
+            _ => false,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Value::List(h) => h.len(),
+            Value::QuotedList(h) => h.len(),
+            Value::EmptyList => 0,
+            Value::EmptyQuotedList => 0,
+            Value::Nil => 0,
+            _ => 0,
         }
     }
 

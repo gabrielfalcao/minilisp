@@ -1,4 +1,5 @@
 #![allow(unused)]
+use std::hash::{Hash, Hasher};
 use std::iter::{Extend, IntoIterator, Iterator};
 use std::ops::Deref;
 
@@ -417,6 +418,14 @@ impl<'c> Clone for Cell<'c> {
             cell.tail.write(tail)
         }
         cell
+    }
+}
+impl<'c> Hash for Cell<'c> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.head().hash(state);
+        self.tail().hash(state);
+        self.refs.hash(state);
+        self.quoted.hash(state);
     }
 }
 impl<'c> Drop for Cell<'c> {

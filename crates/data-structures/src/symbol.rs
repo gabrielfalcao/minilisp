@@ -9,7 +9,7 @@ pub trait AsSymbol<'c> {
     fn as_symbol(&self) -> Symbol<'c>;
 }
 
-#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq)]
+#[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash)]
 pub struct Symbol<'c> {
     sym: &'c str,
     quoted: bool,
@@ -109,6 +109,11 @@ impl<'c> AsSymbol<'c> for str {
 impl<'c> AsSymbol<'c> for Cow<'c, str> {
     fn as_symbol(&self) -> Symbol<'c> {
         Symbol::new(&self)
+    }
+}
+impl<'c> AsSymbol<'c> for &Cow<'c, str> {
+    fn as_symbol(&self) -> Symbol<'c> {
+        Symbol::new(*self)
     }
 }
 
