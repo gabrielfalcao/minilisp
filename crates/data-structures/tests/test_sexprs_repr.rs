@@ -24,7 +24,8 @@ fn test_repr() {
         Value::List(cell)
     };
     let list_2 = {
-        let mut cell = Cell::from(7);
+        let mut cell = Cell::nil();
+        cell.add(&Cell::from(Value::integer(7)));
         cell.add(&Cell::from(Value::string("foo")));
         // cell.add(&Cell::from("foo".to_string()));
         Value::List(cell)

@@ -149,3 +149,53 @@ fn test_emptyquotedlist() {
     assert_display_equal!(Value::EmptyQuotedList, "'()");
     assert_debug_equal!(Value::EmptyQuotedList, "'()");
 }
+
+#[test]
+fn test_value_list_quoted() {
+    let value = Value::from({
+        let mut cell = Cell::from("a");
+        cell.add(&Cell::from("b"));
+        cell.add(&Cell::from("c"));
+        cell
+    });
+    assert_display_equal!(&value, "(a b c)");
+    assert_debug_equal!(&value, "(a b c)");
+
+    let value = value.quote();
+    assert_display_equal!(&value, "'(a b c)");
+    assert_debug_equal!(&value, "'(a b c)");
+}
+
+#[test]
+fn test_value_list_quoted_twice() {
+    let value = Value::from({
+        let mut cell = Cell::from("a");
+        cell.add(&Cell::from("b"));
+        cell.add(&Cell::from("c"));
+        cell
+    });
+    let value = value.quote();
+    let value = value.quote();
+    assert_display_equal!(&value, "'(a b c)");
+    assert_debug_equal!(&value, "'(a b c)");
+}
+
+#[test]
+fn test_value_symbol_quoted() {
+    let value = Value::symbol("a");
+    assert_display_equal!(&value, "a");
+    assert_debug_equal!(&value, "a");
+
+    let value = value.quote();
+    assert_display_equal!(&value, "'a");
+    assert_debug_equal!(&value, "'a");
+}
+
+#[test]
+fn test_value_symbol_quoted_twice() {
+    let value = Value::symbol("a");
+    let value = value.quote();
+    let value = value.quote();
+    assert_display_equal!(&value, "'a");
+    assert_debug_equal!(&value, "'a");
+}

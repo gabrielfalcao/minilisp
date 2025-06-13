@@ -37,7 +37,7 @@ pub fn cdr<'c, T: AsCell<'c>>(item: T) -> Value<'c> {
 pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
     let mut cell = Cell::nil();
     for item in list.into_iter() {
-        cell.add(&item.as_cell());
+        cell.add(&Cell::from(item.unquote()));
     }
     Value::List(cell)
 }

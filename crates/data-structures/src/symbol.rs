@@ -26,16 +26,16 @@ impl<'c> Symbol<'c> {
         }
     }
 
+    pub fn symbol(&self) -> &'c str {
+        self.sym
+    }
+
     pub fn quote(&self) -> Symbol<'c> {
-        let mut symbol = self.clone();
-        symbol.quoted = true;
-        symbol
+        Symbol::quoted(self.symbol(), true)
     }
 
     pub fn unquote(&self) -> Symbol<'c> {
-        let mut symbol = self.clone();
-        symbol.quoted = false;
-        symbol
+        Symbol::quoted(self.symbol(), false)
     }
 
     pub fn is_quoted(&self) -> bool {

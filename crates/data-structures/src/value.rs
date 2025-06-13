@@ -2,6 +2,7 @@
 use std::borrow::Cow;
 use std::convert::{AsMut, AsRef};
 use std::fmt::{Debug, Display, Formatter};
+use std::iter::{Extend, FromIterator, IntoIterator};
 
 use unique_pointer::UniquePointer;
 
@@ -15,12 +16,11 @@ pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
 
 use crate::{AsCell, AsNumber, AsSymbol, Cell, Quotable, Symbol};
 
-pub trait ValueListIterator<'c>: IntoIterator<Item = Value<'c>> {
-    fn list_value_iter(&self) -> Value<'c>;
+pub trait ValueListIterator<'c>:
+    IntoIterator<Item = Value<'c>> + Quotable
+{
 }
-pub trait ValueQuotedListIterator<'c>: IntoIterator<Item = Value<'c>> {
-    fn quoted_list_value_iter(&self) -> Value<'c>;
-}
+// impl <'c, T: IntoIterator<Item = Value<'c>> + Quotable> ValueListIterator<'c> for T {}
 
 pub trait AsValue<'c>: Quotable {
     fn as_value(&self) -> Value<'c>;
@@ -31,7 +31,7 @@ pub enum Value<'c> {
     #[default]
     Nil,
     T,
-    String(Cow<'c, str>),
+    String(&'c str),
     Symbol(Symbol<'c>),
     QuotedSymbol(Symbol<'c>),
     Byte(u8),
@@ -61,7 +61,7 @@ impl<'c> Value<'c> {
     }
 
     pub fn string<T: ToString>(value: T) -> Value<'c> {
-        Value::String(Cow::from(value.to_string()))
+        Value::String(value.to_string().leak())
     }
 
     pub fn byte<T: AsNumber<u8>>(byte: T) -> Value<'c> {
@@ -110,23 +110,10 @@ impl<'c> Value<'c> {
 
     pub fn quote(&self) -> Value<'c> {
         let value = match self {
-            Value::Symbol(h) => {
-                assert!(!h.is_quoted());
-                Value::QuotedSymbol(h.clone().quote())
-            },
-            Value::List(h) => {
-                assert!(!h.is_quoted());
-                Value::QuotedList(h.clone().quote())
-            },
-            Value::QuotedSymbol(h) => {
-                assert!(h.is_quoted());
-                Value::QuotedSymbol(h.clone().quote())
-            },
-            Value::QuotedList(h) => {
-                assert!(h.is_quoted());
-                Value::QuotedList(h.clone().quote())
-            },
-            // _ => self.clone(),
+            Value::Symbol(h) => Value::QuotedSymbol(h.clone().unquote()),
+            Value::List(h) => Value::QuotedList(h.clone().unquote()),
+            Value::QuotedSymbol(h) => Value::QuotedSymbol(h.clone().unquote()),
+            Value::QuotedList(h) => Value::QuotedList(h.clone().unquote()),
             _ => self.clone(),
         };
         value.clone()
@@ -205,13 +192,23 @@ impl Display for Value<'_> {
                 Value::Float(h) => format!("{}", h),
                 Value::Integer(h) => format!("{}", h),
                 Value::String(h) => format!("{:#?}", h),
-                Value::Symbol(h) => format!("{}", format!("{}", h)),
-                Value::QuotedSymbol(h) => format!("'{}", format!("{}", h)),
+                Value::Symbol(h) => format!("{}", h),
+                Value::QuotedSymbol(h) => format!("'{}", h),
                 Value::UnsignedInteger(h) => format!("{}", h),
-                Value::List(h) => format!("({})", format!("{}", h)),
-
-                Value::QuotedList(h) => format!("'({})", format!("{}", h)),
-
+                Value::List(h) => {
+                    if h.is_nil() {
+                        format!("()")
+                    } else {
+                        format!("({})", h)
+                    }
+                },
+                Value::QuotedList(h) => {
+                    if h.is_nil() {
+                        format!("'()")
+                    } else {
+                        format!("'({})", h)
+                    }
+                },
                 Value::EmptyList => format!("()"),
                 Value::EmptyQuotedList => format!("'()"),
             }
@@ -231,21 +228,16 @@ impl Debug for Value<'_> {
                 Value::Integer(h) => format!("{:#?}", h),
                 Value::String(h) => format!("{:#?}", h),
                 Value::Symbol(h) => format!("{}", h),
-                Value::QuotedSymbol(h) => format!("'{}", format!("{:#?}", h)),
+                Value::QuotedSymbol(h) => format!("'{:#?}", h),
                 Value::UnsignedInteger(h) => format!("{:#?}", h),
-                Value::List(h) => format!("({})", format!("{:#?}", h)),
-                Value::QuotedList(h) => format!("'({})", format!("{:#?}", h)),
+                Value::List(h) => format!("({:#?})", h),
+                Value::QuotedList(h) => format!("'({:#?})", h),
                 Value::EmptyList => format!("()"),
                 Value::EmptyQuotedList => format!("'()"),
             }
         )
     }
 }
-// impl<'c> Clone for Value<'c> {
-//     fn clone(&self) -> Value<'c> {
-//         self.clone()
-//     }
-// }
 impl<'c> From<()> for Value<'c> {
     fn from(_: ()) -> Value<'c> {
         Value::Nil
@@ -267,12 +259,12 @@ impl<'c> From<u8> for Value<'c> {
 }
 impl<'c> From<Symbol<'c>> for Value<'c> {
     fn from(value: Symbol<'c>) -> Value<'c> {
-        Value::Symbol(value)
+        Value::Symbol(value.clone().unquote())
     }
 }
 impl<'c> From<&'c str> for Value<'c> {
     fn from(value: &'c str) -> Value<'c> {
-        Value::String(Cow::from(value))
+        Value::String(value.to_string().leak())
     }
 }
 impl<'c> From<u64> for Value<'c> {
@@ -296,17 +288,17 @@ impl<'c> From<i32> for Value<'c> {
 
 impl<'c> From<Cow<'c, str>> for Value<'c> {
     fn from(value: Cow<'c, str>) -> Value<'c> {
-        Value::from(value.into_owned())
+        Value::from(value.into_owned().to_string().leak())
     }
 }
 impl<'c> From<&'c mut str> for Value<'c> {
     fn from(value: &'c mut str) -> Value<'c> {
-        Value::String(Cow::<'c, str>::Borrowed(&*value))
+        Value::String(value.to_string().leak())
     }
 }
 impl<'c> From<String> for Value<'c> {
     fn from(value: String) -> Value<'c> {
-        Value::String(Cow::from(value))
+        Value::String(value.leak())
     }
 }
 impl<'c> From<Option<String>> for Value<'c> {
@@ -397,7 +389,7 @@ impl<'c> AsValue<'c> for u8 {
 // }
 impl<'c> AsValue<'c> for &'c str {
     fn as_value(&self) -> Value<'c> {
-        Value::String(Cow::from(self.to_string()))
+        Value::String(self.to_string().leak())
     }
 }
 impl<'c> AsValue<'c> for u64 {
@@ -421,17 +413,17 @@ impl<'c> AsValue<'c> for i32 {
 
 impl<'c> AsValue<'c> for Cow<'c, str> {
     fn as_value(&self) -> Value<'c> {
-        Value::from(self.clone().into_owned())
+        Value::from(self.clone().into_owned().to_string().leak())
     }
 }
 impl<'c> AsValue<'c> for &'c mut str {
     fn as_value(&self) -> Value<'c> {
-        Value::String(Cow::from(self.to_string()))
+        Value::String(self.to_string().leak())
     }
 }
 impl<'c> AsValue<'c> for String {
     fn as_value(&self) -> Value<'c> {
-        Value::String(Cow::from(self.to_string()))
+        Value::String(self.to_string().leak())
     }
 }
 impl<'c> AsValue<'c> for Option<String> {
@@ -476,7 +468,7 @@ impl<'c> AsCell<'c> for &Value<'c> {
 }
 
 // impl<'c, const N: usize> ValueListIterator<'c> for [Value<'c>; N] {
-//     fn list_value_iter(&self) -> Value<'c> {
+//     fn list_iter_values(&self) -> Value<'c> {
 //         let mut cell = Cell::nil();
 //         for item in self {
 //             cell.add(&Cell::from(item));
@@ -484,24 +476,18 @@ impl<'c> AsCell<'c> for &Value<'c> {
 //         Value::list(cell)
 //     }
 // }
-// impl<'c, const N: usize> ValueQuotedListIterator<'c> for [Value<'c>; N] {
-//     fn quoted_list_value_iter(&self) -> Value<'c> {
-//         let mut cell = Cell::nil();
-//         for item in self {
-//             cell.add(&Cell::from(item));
-//         }
-//         Value::quoted_list(cell)
-//     }
-// }
 
+#[derive(Debug, Clone)]
 pub struct ValueIterator<'c> {
     cell: UniquePointer<Cell<'c>>,
+    quoted: bool,
 }
 
 impl<'c> ValueIterator<'c> {
-    pub fn new(cell: &Cell<'c>) -> ValueIterator<'c> {
+    pub fn new(cell: &Cell<'c>, quoted: bool) -> ValueIterator<'c> {
         ValueIterator {
             cell: UniquePointer::from_ref(cell),
+            quoted,
         }
     }
 
@@ -531,18 +517,92 @@ impl<'c> Iterator for ValueIterator<'c> {
         }
     }
 }
+impl<'c> Quotable for ValueIterator<'c> {
+    fn is_quoted(&self) -> bool {
+        self.quoted
+    }
+
+    fn set_quoted(&mut self, quoted: bool) {
+        self.quoted = quoted;
+    }
+}
+impl<'c> ValueListIterator<'c> for ValueIterator<'c> {}
 
 impl<'c> IntoIterator for Value<'c> {
     type IntoIter = ValueIterator<'c>;
     type Item = Value<'c>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ValueIterator::new(&match self {
-            Value::List(ref cell) | Value::QuotedList(ref cell) => cell.clone(),
-            value => Cell::from(value),
-        })
+        ValueIterator::new(
+            &match self {
+                Value::List(ref cell) | Value::QuotedList(ref cell) =>
+                    cell.clone(),
+                ref value => Cell::from(value.clone()),
+            },
+            self.is_quoted(),
+        )
     }
 }
+
+impl<'c> FromIterator<Value<'c>> for Value<'c> {
+    fn from_iter<I: IntoIterator<Item = Value<'c>>>(iter: I) -> Value<'c> {
+        let mut cell = Cell::nil();
+        for value in iter {
+            cell.add(&Cell::from(value));
+        }
+        Value::list(cell)
+    }
+}
+impl<'c> Extend<Value<'c>> for Value<'c> {
+    fn extend<T: IntoIterator<Item = Value<'c>>>(&mut self, iter: T) {
+        if let Value::List(ref mut cell) = self {
+            for value in iter {
+                cell.add(&Cell::from(value));
+            }
+        } else if let Value::QuotedList(ref mut cell) = self {
+            for value in iter {
+                cell.add(&Cell::from(value));
+            }
+        } else {
+            match self.clone() {
+                Value::EmptyList => {
+                    let mut cell = Cell::nil();
+                    for value in iter {
+                        cell.add(&Cell::from(value))
+                    }
+                    *self = Value::List(cell)
+                },
+                Value::EmptyQuotedList => {
+                    let mut cell = Cell::nil();
+                    for value in iter {
+                        cell.add(&Cell::from(value))
+                    }
+                    *self = Value::QuotedList(cell)
+                },
+                value => {
+                    let mut cell = Cell::nil();
+                    for value in iter {
+                        cell.add(&Cell::from(value))
+                    }
+                    *self = Value::List(cell)
+                },
+            }
+        }
+    }
+}
+
+// impl<'c> FromIterator<Cell<'c>> for Value<'c> {
+//     fn from_iter<I: IntoIterator<Item = Cell<'c>>>(iter: I) -> Value<'c> {
+//         let mut cell = Cell::nil();
+//         for cell in iter {
+//             for value in cell {
+//                 cell.add(&Cell::from(value));
+//             }
+//         }
+//         Value::list(cell)
+//     }
+// }
+
 impl<'c> Quotable for Value<'c> {
     fn set_quoted(&mut self, quoted: bool) {
         match self {
@@ -576,47 +636,12 @@ impl<'c> Quotable for Value<'c> {
 
     fn is_quoted(&self) -> bool {
         match self {
-            Value::Symbol(h) => {
-                assert!(!h.is_quoted());
-                false
-            },
-            Value::List(h) => {
-                assert!(!h.is_quoted());
-                false
-            },
-            Value::QuotedSymbol(h) => {
-                assert!(h.is_quoted());
-                true
-            },
-            Value::QuotedList(h) => {
-                assert!(h.is_quoted());
-                true
-            },
+            Value::Symbol(h) => false,
+            Value::List(h) => false,
+            Value::QuotedSymbol(h) => true,
+            Value::QuotedList(h) => true,
             Value::EmptyQuotedList => true,
             _ => false,
         }
     }
 }
-
-// impl<'c> AsCell<'c> for Value<'c> {
-//     fn as_cell(&self) -> Cell<'c> {
-//         match self {
-//             Value::Nil => Cell::nil(),
-//             Value::T => Cell::from(Value::T),
-//             Value::String(value) => Cell::from(Value::string(value)),
-//             Value::Symbol(value) => Cell::from(Value::symbol(value)),
-//             Value::Byte(value) => Cell::from(Value::byte(*value)),
-//             Value::UnsignedInteger(value) =>
-//                 Cell::from(Value::unsigned_integer(*value)),
-//             Value::Integer(value) => Cell::from(Value::integer(*value)),
-//             Value::Float(value) => Cell::from(Value::float(*value)),
-//             Value::List(value) => Cell::from(Value::List(value.clone())),
-//             Value::QuotedList(value) =>
-//                 Cell::from(Value::QuotedList(value.clone())).quote(),
-//             Value::QuotedSymbol(value) =>
-//                 Cell::from(Value::symbol(value).quote()).quote(),
-//             Value::EmptyList => Cell::nil(),
-//             Value::EmptyQuotedList => Cell::nil().quote(),
-//         }
-//     }
-// }
