@@ -12,7 +12,7 @@ fn test_multiply_numbers() -> Result<()> {
         Value::integer(7i64),
     ]);
 
-    let val = vm.eval_ast(ast)?;
+    let val = vm.eval(ast)?;
     assert_equal!(val, Value::integer(21));
     Ok(())
 }
@@ -26,7 +26,7 @@ fn test_add_numbers() -> Result<()> {
         Value::unsigned_integer(2u64),
     ]);
 
-    let val = vm.eval_ast(ast)?;
+    let val = vm.eval(ast)?;
     assert_equal!(val, Value::unsigned_integer(4u64));
     Ok(())
 }
@@ -40,7 +40,7 @@ fn test_subtract_numbers() -> Result<()> {
         Value::unsigned_integer(2u64),
     ]);
 
-    let val = vm.eval_ast(ast)?;
+    let val = vm.eval(ast)?;
     assert_equal!(val, Value::unsigned_integer(3u64));
     Ok(())
 }
@@ -54,7 +54,7 @@ fn test_divide_numbers() -> Result<()> {
         Value::float(3.0),
     ]);
 
-    let val = vm.eval_ast(ast)?;
+    let val = vm.eval(ast)?;
     assert_equal!(val, Value::float(10.0));
     Ok(())
 }

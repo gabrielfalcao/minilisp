@@ -327,7 +327,20 @@ impl<'c> From<u8> for Value<'c> {
 }
 impl<'c> From<Symbol<'c>> for Value<'c> {
     fn from(value: Symbol<'c>) -> Value<'c> {
-        Value::Symbol(value.clone().unquote())
+        if value.is_quoted() {
+            Value::quoted_symbol(value.unquote())
+        } else {
+            Value::symbol(value.unquote())
+        }
+    }
+}
+impl<'c> From<&Symbol<'c>> for Value<'c> {
+    fn from(value: &Symbol<'c>) -> Value<'c> {
+        if value.is_quoted() {
+            Value::quoted_symbol(value.unquote())
+        } else {
+            Value::symbol(value.unquote())
+        }
     }
 }
 impl<'c> From<&'c str> for Value<'c> {

@@ -1,8 +1,15 @@
 use std::borrow::Cow;
 
 use k9::assert_equal;
-use minilisp_data_structures::{assert_debug_equal, assert_display_equal, Value};
+use minilisp_data_structures::{assert_debug_equal, assert_display_equal, Value, Symbol};
 
+#[test]
+fn value_from_symbol() {
+    assert_equal!(Value::from(Symbol::new("test")), Value::symbol("test"));
+    assert_equal!(Value::from(Symbol::new("test").quote()), Value::quoted_symbol("test"));
+    assert_equal!(Value::from(&Symbol::new("test")), Value::symbol("test"));
+    assert_equal!(Value::from(&Symbol::new("test").quote()), Value::quoted_symbol("test"));
+}
 #[test]
 fn value_from_bool() {
     assert_equal!(Value::from(true), Value::T);

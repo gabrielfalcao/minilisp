@@ -30,14 +30,19 @@ pub fn parse_source<'a>(input: &'a str) -> Result<'a, Value<'a>> {
         )
     })?;
     let file = pairs.next().unwrap();
-    let nodes =
-        map_pairs_to_list(file.into_inner().next().unwrap().into_inner());
+    let nodes = pair_to_value(
+        file.into_inner()
+            .next()
+            .expect("statement")
+            .into_inner()
+            .next()
+            .expect("item"),
+    );
     Ok(nodes)
 }
 
 pub fn map_pairs_to_list<'a>(mut pairs: Pairs<'a, Rule>) -> Value<'a> {
-    let pair = pairs.next().expect("item");
-    pair_to_value(pair)
+    pairs.map(|pair| pair_to_value(pair)).collect()
 }
 pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
     match pair.as_rule() {
@@ -55,7 +60,7 @@ pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
         ),
         Rule::value =>
             pair_to_value(pair.clone().into_inner().next().expect("value")),
-        Rule::item => map_pairs_to_list(pair.clone().into_inner()),
+        Rule::item => pair_to_value(pair.clone().into_inner().next().expect("item")),
         Rule::sexpr => {
             let mut items = Cell::nil();
             let mut pairs = pair.clone().into_inner();

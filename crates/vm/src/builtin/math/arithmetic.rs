@@ -1,19 +1,22 @@
 use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
 
-use minilisp_data_structures::{append, car, cdr, list, Cell, Value, AsInteger, AsUnsignedInteger, AsFloat};
-use minilisp_util::{dbg, try_result};
-
-use crate::helpers::{
-    unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
+use minilisp_data_structures::{
+    append, car, cdr, list, AsFloat, AsInteger, AsUnsignedInteger, Cell,
+    Float, Integer, UnsignedInteger, Value,
 };
+use minilisp_util::try_result;
+
+// use crate::helpers::{
+//     unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
+// };
 use crate::{
     impl_arithmetic_operation, runtime_error, with_caller, Error, ErrorType,
     Result, VirtualMachine,
 };
 
 impl_arithmetic_operation!(+ add);
-impl_arithmetic_operation!(- sub);
-impl_arithmetic_operation!(* mul);
+impl_arithmetic_operation!(-sub);
+impl_arithmetic_operation!(*mul);
 impl_arithmetic_operation!(/ div);
 
 #[macro_export]
@@ -38,44 +41,26 @@ macro_rules! impl_arithmetic_operation {
                 )));
             }
             match &car(&list) {
-                Value::UnsignedInteger(first_operand)=> {
-                    let mut operands =
-                        try_result!(unpack_unsigned_integer_items(vm, list).map_err(|error| {
-                            Error::with_previous_error(
-                                format!("call to {:#?} function", stringify!($operator)),
-                                ErrorType::RuntimeError,
-                                Some(error),
-                            )
-                        }));
-
-                    let first = car(&operands).as_unsigned_integer();
-                    dbg!(&first_operand, &first, operands);
-                    Ok(Value::UnsignedInteger(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_unsigned_integer() $operator rhs.as_unsigned_integer())))
+                Value::UnsignedInteger(first)=> {
+                    let first = first.clone();
+                    let mut operands = cdr(&list).into_iter()
+                        .filter(|value|value.is_unsigned_integer())
+                        .map(|value|value.as_unsigned_integer());
+                    Ok(Value::UnsignedInteger(operands.fold(first, |lhs, rhs| lhs $operator rhs)))
                 },
-                Value::Integer(first_operand) => {
-                    let mut operands = try_result!(unpack_integer_items(vm, list).map_err(|error| {
-                        Error::with_previous_error(
-                            format!("call to {:#?} function", stringify!($operator)),
-                            ErrorType::RuntimeError,
-                            Some(error),
-                        )
-                    }));
-                    let first = car(&operands).as_integer();
-                    dbg!(&first_operand, &first, operands);
-                    Ok(Value::Integer(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_integer() $operator rhs.as_integer())))
+                Value::Integer(first)=> {
+                    let first = first.clone();
+                    let mut operands = cdr(&list).into_iter()
+                        .filter(|value|value.is_integer())
+                        .map(|value|value.as_integer());
+                    Ok(Value::Integer(operands.fold(first, |lhs, rhs| lhs $operator rhs)))
                 },
-                Value::Float(first_operand) => {
-                    let mut operands = try_result!(unpack_float_items(vm, list).map_err(|error| {
-                        Error::with_previous_error(
-                            format!("call to {:#?} function", stringify!($operator)),
-                            ErrorType::RuntimeError,
-                            Some(error),
-                        )
-                    }));
-                    let first = car(&operands).as_float();
-                    dbg!(&first_operand, &first, operands);
-                    Ok(Value::Float(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_float() $operator rhs.as_float())))
-
+                Value::Float(first)=> {
+                    let first = first.clone();
+                    let mut operands = cdr(&list).into_iter()
+                        .filter(|value|value.is_float())
+                        .map(|value|value.as_float());
+                    Ok(Value::Float(operands.fold(first, |lhs, rhs| lhs $operator rhs)))
                 },
                 Value::Symbol(sym) => {
                     todo!("evaluate symbol: {:#?}", sym);

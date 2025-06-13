@@ -1,6 +1,7 @@
 #![allow(unused)]
-use std::fmt::{Debug, Display, Formatter};
 use std::borrow::Cow;
+use std::fmt::{Debug, Display, Formatter};
+
 use unique_pointer::UniquePointer;
 
 use crate::{AsValue, Quotable, Value};
@@ -45,6 +46,11 @@ impl<'c> Symbol<'c> {
 
 impl Display for Symbol<'_> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{}", &self.sym)
+    }
+}
+impl Debug for Symbol<'_> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}",
@@ -58,11 +64,6 @@ impl Display for Symbol<'_> {
             ]
             .join("")
         )
-    }
-}
-impl Debug for Symbol<'_> {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
     }
 }
 
@@ -121,6 +122,7 @@ impl<'c> Quotable for Symbol<'c> {
     fn is_quoted(&self) -> bool {
         self.quoted
     }
+
     fn set_quoted(&mut self, quoted: bool) {
         self.quoted = quoted;
     }

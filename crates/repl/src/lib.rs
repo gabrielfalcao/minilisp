@@ -45,8 +45,12 @@ impl<'c> Highlighter for VirtualMachinePrompt<'c> {
     }
 
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        dbg!(hint);
-        Cow::from(hint)
+        // dbg!(hint);
+        // Cow::from(hint)
+        Cow::from(
+            highlight(hint.to_string(), "list")
+                .unwrap_or_else(|_| hint.to_string()),
+        )
     }
 
     fn highlight_candidate<'h>(
@@ -174,12 +178,10 @@ impl<'c> Validator for VirtualMachinePrompt<'c> {
         // ValidationResult::Invalid(Option<String>),
         // ValidationResult::Valid(Option<String>),
         // dbg!(ctx);
-        match parse_source(ctx.line()) {
-            Ok(value) => Ok(ValidationResult::Valid(Some(
-                highlight(value.to_string(), "list")
-                    .unwrap_or_else(|| value.to_string()),
-            ))),
-            Err(e) => Ok(ValidationResult::Invalid(e.to_string())),
+        match parse_source(ctx.input()) {
+            Ok(value) => Ok(ValidationResult::Valid(None)),
+            // Ok(value) => Ok(ValidationResult::Valid(Some(format!(" ;; ok.\n")))),
+            Err(e) => Ok(ValidationResult::Invalid(Some(e.to_string()))),
         }
     }
 

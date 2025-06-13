@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use minilisp_data_structures as ds;
-use minilisp_data_structures::{Value, AsCell, Quotable};
+use minilisp_data_structures::{AsCell, Quotable, Value};
 use minilisp_util::{dbg, try_result, vec_deque};
 
 use crate::helpers::runtime_error;

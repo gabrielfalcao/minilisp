@@ -75,7 +75,7 @@ fn repl<'a>() -> Result<()> {
                             println!(
                                 "{}",
                                 highlight(
-                                    vm.eval_ast(value)?.to_string(),
+                                    vm.eval(value)?.to_string(),
                                     "lisp"
                                 )?
                             );

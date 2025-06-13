@@ -1,6 +1,5 @@
-#![allow(unused)]
+#![allow(unused, mutable_transmutes)]
 #![feature(trait_alias)]
-
 use std::borrow::Cow;
 
 pub use errors::{Error, ErrorType, Result};
@@ -13,11 +12,12 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
 pub mod helpers;
-pub use helpers::{
-    runtime_error, unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
+pub use helpers::runtime_error;
+use minilisp_data_structures::{
+    append, car, cdr, list, AsSymbol, AsValue, Cell, Symbol, Value,
 };
-use minilisp_data_structures::{append, car, cdr, list, Cell, Value, Symbol};
-use minilisp_util::{format_to_str, unexpected, with_caller};
+use minilisp_parser::parse_source;
+use minilisp_util::{dbg, format_to_str, unexpected, with_caller};
 
 pub type BuiltinFunction =
     for<'c> fn(&mut VirtualMachine<'c>, Value<'c>) -> Result<Value<'c>>;
@@ -26,6 +26,7 @@ pub type BuiltinFunction =
 pub enum Sym<'c> {
     Value(Value<'c>),
     BuiltinFunction(Symbol<'c>, BuiltinFunction),
+    Function(Symbol<'c>, Value<'c>, Value<'c>),
 }
 
 impl<'c> Debug for Sym<'c> {
@@ -36,6 +37,8 @@ impl<'c> Debug for Sym<'c> {
             match self {
                 Sym::Value(value) => format!("{:#?}", value),
                 Sym::BuiltinFunction(name, _) => format!("builtin-function"),
+                Sym::Function(name, args, body) =>
+                    format!("(defun {} {} {})", name, args, body),
             }
         )
     }
@@ -47,6 +50,14 @@ impl<'c> Sym<'c> {
             Sym::BuiltinFunction(sym, function) => {
                 warn!(format!("symbol {} is a builtin-function", sym));
                 Value::symbol(sym)
+            },
+            Sym::Function(name, args, body) => {
+                warn!(format!("{} {} {}", &name, &args, &body));
+                Value::quoted_list([
+                    Value::from(name),
+                    args.clone(),
+                    body.clone(),
+                ])
             },
         }
     }
@@ -76,8 +87,12 @@ pub struct VirtualMachine<'c> {
 impl<'c> VirtualMachine<'c> {
     pub fn new() -> VirtualMachine<'c> {
         let mut vm = VirtualMachine::<'c>::default();
+        // identity functions
+        vm.register_builtin_function("t", builtin::identity::t);
+
         // state side-effect functions
         vm.register_builtin_function("setq", builtin::state::setq);
+        vm.register_builtin_function("defun", builtin::state::defun);
 
         // list functions
         vm.register_builtin_function("car", builtin::list::car);
@@ -107,6 +122,23 @@ impl<'c> VirtualMachine<'c> {
         );
     }
 
+    pub fn register_function(
+        &mut self,
+        name: Symbol<'c>,
+        args: Value<'c>,
+        body: Value<'c>,
+    ) -> Value<'c> {
+        let function = Sym::<'c>::Function(name.clone(), args, body);
+        let previous = self
+            .symbols
+            .insert(name.clone(), function.clone());
+        if let Some(previous) = previous {
+            Value::string(format!("previous: {:#?}", previous))
+        } else {
+            Value::string(format!("{:#?}", function))
+        }
+    }
+
     pub fn symbols(&self) -> BTreeMap<Symbol<'c>, Sym<'c>> {
         self.symbols.clone()
     }
@@ -127,6 +159,16 @@ impl<'c> VirtualMachine<'c> {
             ))),
 
             Sym::BuiltinFunction(_sym, function) => Ok(function),
+            Sym::Function(name, args, body) => {
+                dbg!(&name, &args, &body);
+                Err(with_caller!(runtime_error(
+                    format!(
+                        "symbol {:#?} is not builtin function: (defun {} {} {})",
+                        &name, &name, &args, &body
+                    ),
+                    None
+                )))
+            },
         }
     }
 
@@ -154,7 +196,7 @@ impl<'c> VirtualMachine<'c> {
         let mut function = try_result!(self.get_symbol_function(sym.symbol()));
         let result = function(self, list);
         match result {
-            Ok(item) => Ok(self.eval_ast(item)?),
+            Ok(item) => Ok(self.eval(item)?),
             Err(error) => Err(runtime_error(
                 format!("Failed to evaluate function {:#?}: {}", sym, error),
                 Some(with_caller!(error)),
@@ -162,28 +204,31 @@ impl<'c> VirtualMachine<'c> {
         }
     }
 
-    pub fn eval_ast(&mut self, item: Value<'c>) -> Result<Value<'c>> {
+    pub fn eval_string(&mut self, string: &'c str) -> Result<Value<'c>> {
+        Ok(try_result!(self.eval(try_result!(parse_source(string)))))
+    }
+
+    pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
         match &item {
-            Value::List(ref list) => {
-                if list.is_empty() {
-                    return Ok(Value::Nil);
-                }
-                match car(&item) {
-                    Value::Symbol(ref symbol) => Ok(try_result!(
-                        self.eval_symbol_function(symbol, cdr(&item))
-                    )),
-                    _ => Ok(car(&item)),
-                }
+            Value::QuotedList(_) | Value::List(_) => match car(&item) {
+                Value::Symbol(ref symbol) => Ok(try_result!(
+                    self.eval_symbol_function(symbol, cdr(&item))
+                )),
+                _ => Ok(item.quote()),
             },
-            Value::Symbol(symbol) =>
+            Value::Symbol(symbol) | Value::QuotedSymbol(symbol) =>
                 Ok(try_result!(self.eval_symbol(symbol.symbol()))),
             value => Ok(value.clone()),
         }
     }
 
-    pub fn setq(&mut self, sym: Symbol<'c>, item: Value<'c>) -> Result<Value<'c>> {
+    pub fn setq(
+        &mut self,
+        sym: Symbol<'c>,
+        item: Value<'c>,
+    ) -> Result<Value<'c>> {
         //("setq", &item);
-        let symbol_value = Sym::Value(self.eval_ast(item.clone())?);
+        let symbol_value = Sym::Value(self.eval(item.clone())?);
         let previous = self
             .symbols
             .insert(sym.clone(), symbol_value.clone());
@@ -191,6 +236,10 @@ impl<'c> VirtualMachine<'c> {
         let item = match previous.unwrap_or_else(|| symbol_value) {
             Sym::Value(value) => value.clone(),
             Sym::BuiltinFunction(sym, _) => Value::symbol(sym.clone()),
+            Sym::Function(name, args, body) => {
+                dbg!(&sym, &item, &name, &body, &args);
+                item
+            },
         };
 
         Ok(item)
@@ -204,26 +253,58 @@ impl<'c> VirtualMachine<'c> {
             match car(&list) {
                 Value::Symbol(ref sym) => {
                     //(&sym);
-                    Ok(try_result!(
-                        self.eval_symbol_function(sym, cdr(&list))
-                    ))
+                    Ok(try_result!(self.eval_symbol_function(sym, cdr(&list))))
                 },
-                Value::List(ref list) =>
-                    Ok(try_result!(self.eval_list(Value::list(list.clone())))),
+                Value::List(_) => {
+                    let mut value = Value::empty_list();
+                    for result in
+                        list.into_iter().map(|value| self.eval(value))
+                    {
+                        value.extend([try_result!(result)]);
+                    }
+                    Ok(value)
+                },
                 value => {
                     unexpected!(value)
-                }
+                },
             }
         }
     }
 
+    pub fn eval_defun(
+        &mut self,
+        sym: Symbol<'c>,
+        args: Value<'c>,
+        body: Value<'c>,
+    ) -> Result<Value<'c>> {
+        dbg!(&sym, &args, &body);
+        Ok(Value::quoted_list([
+            Value::from(sym),
+            Value::quoted_list([Value::symbol("args"), args]),
+            Value::quoted_list([Value::symbol("body"), body]),
+        ]))
+    }
+
     pub fn eval_symbol(&mut self, sym: &str) -> Result<Value<'c>> {
-        let symbol = try_result!(self.get_symbol(sym));
+        let symbol = try_result!(unsafe {
+            std::mem::transmute::<
+                &&mut VirtualMachine<'c>,
+                &mut &mut VirtualMachine<'c>,
+            >(&self)
+        }
+        .get_symbol(sym));
         //(&sym, &symbol);
         match symbol {
             Sym::Value(value) => Ok(value.clone()),
             Sym::BuiltinFunction(sym, _) =>
                 Ok(Value::string(format!("builtin function {:#?}", sym))),
+            Sym::Function(name, args, body) => Ok(try_result!(unsafe {
+                std::mem::transmute::<
+                    &&mut VirtualMachine<'c>,
+                    &mut &mut VirtualMachine<'c>,
+                >(&self)
+            }
+            .eval_defun(name.clone(), args.clone(), body.clone()))),
         }
     }
 }
