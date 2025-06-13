@@ -33,6 +33,27 @@ fn test_cell_from_iterator_quoted_list() {
     });
 }
 
+#[test]
+fn test_cell_is_empty() {
+    let cell = Cell::nil();
+
+    assert_equal!(cell.is_empty(), true);
+    let cell = {
+        let mut cell = Cell::from("a");
+        cell.add(&Cell::from("b"));
+        cell.add(&Cell::from("c"));
+        cell
+    };
+    assert_equal!(cell.is_empty(), false);
+    let cell = {
+        let mut cell = Cell::nil();
+        cell.add(&Cell::from("b"));
+        cell.add(&Cell::from("c"));
+        cell
+    };
+    assert_equal!(cell.is_empty(), false);
+}
+
 // #[test]
 // fn test_cell_from_iterator_cell() {
 //     let mut cell = Cell::from("a");
