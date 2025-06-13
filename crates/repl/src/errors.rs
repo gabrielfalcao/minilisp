@@ -50,6 +50,11 @@ impl From<rustyline::Error> for Error {
         Error::new(e, ErrorType::ReplError)
     }
 }
+impl From<rustyline::error::ReadlineError> for Error {
+    fn from(e: rustyline::error::ReadlineError) -> Self {
+        Error::new(e, ErrorType::ReplError)
+    }
+}
 
 impl From<minilisp_vm::Error> for Error {
     fn from(e: minilisp_vm::Error) -> Self {
