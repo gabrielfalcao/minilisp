@@ -21,7 +21,8 @@ statement               = { item+ }
 item                    = { (value | symbol) | sexpr}
 
 value                   = { (t | nil | float | unsigned | integer | double_quoted_string) }
-symbol                  = @{ (!(nonsymbol | integer) ~ ANY)+ }
+symbol                  = @{ ((!(nonsymbol | integer) ~ ANY)+) }
+// symbol                  = @{ (((quote ~ !(nonsymbol | integer) ~ ANY)+) | ((!(nonsymbol | integer) ~ ANY)+))  }
 
 defun                   = { open_paren ~ "defun" ~ symbol_sexpr ~ item* }
 sexpr                    = { quote? ~ open_paren ~ item* ~ close_paren }

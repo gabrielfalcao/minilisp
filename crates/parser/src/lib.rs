@@ -1,46 +1,95 @@
 use std::borrow::Cow;
 pub mod errors;
 pub use errors::{Caller, Error, Result};
-pub mod ast;
 pub mod macros;
 pub mod test;
-use std::collections::VecDeque;
 
 pub mod source;
-pub use ast::{
-    format_position,
-    format_rule,
-    format_span, //, parse_error_expecting, rule_options_to_string, rule_to_string,
-    Item,
-    Node,
-    Value,
-};
+use std::str::FromStr;
+
+use minilisp_data_structures::{Cell, Value};
+use minilisp_util::unexpected;
+use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
 pub use source::{Source, Span, SpanPosition};
-
 pub const GRAMMAR: &'static str = include_str!("./grammar.pest");
 
 #[derive(Parser, Debug, Clone)]
 #[grammar = "src/grammar.pest"]
 pub struct MinilispSource;
-pub fn parse_source<'a, T: std::fmt::Display>(input: T) -> Result<'a, VecDeque<Node<'a>>> {
-    let input = input.to_string();
+pub fn parse_source<'a>(input: &'a str) -> Result<'a, Value<'a>> {
     let source_info = Source {
-        source: Cow::from(input.clone()),
+        source: Cow::from(input),
         filename: None,
     };
-    let source = source_info.clone();
-    let mut pairs = MinilispSource::parse(Rule::file, unsafe {std::mem::transmute::<&str, &'a str>(input.as_str())}).map_err(|e| {
-        Error::new(e.variant.message().to_string(), Some(Span::from_error(e, source_info.clone())))
+    let mut pairs = MinilispSource::parse(Rule::file, input).map_err(|e| {
+        Error::new(
+            e.variant.message().to_string(),
+            Some(Span::from_error(e, source_info.clone())),
+        )
     })?;
     let file = pairs.next().unwrap();
-    let nodes = file
-        .into_inner()
-        .next()
-        .unwrap()
-        .into_inner()
-        .map(|pair| Node::from_pair(pair.clone(), source.clone()))
-        .collect::<VecDeque<Node<'a>>>();
+    let nodes =
+        map_pairs_to_list(file.into_inner().next().unwrap().into_inner());
     Ok(nodes)
+}
+
+pub fn map_pairs_to_list<'a>(mut pairs: Pairs<'a, Rule>) -> Value<'a> {
+    let pair = pairs.next().expect("item");
+    pair_to_value(pair)
+}
+pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
+    match pair.as_rule() {
+        Rule::float => Value::float(
+            f64::from_str(pair.as_span().as_str()).expect("float"),
+        ),
+        Rule::integer => Value::integer(
+            i64::from_str(pair.as_span().as_str()).expect("integer"),
+        ),
+        Rule::string => Value::string(Cow::from(pair.as_span().as_str())),
+        Rule::symbol => Value::symbol(Cow::from(pair.as_span().as_str())),
+        Rule::t => Value::T,
+        Rule::unsigned => Value::unsigned_integer(
+            u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
+        ),
+        Rule::value =>
+            pair_to_value(pair.clone().into_inner().next().expect("value")),
+        Rule::item => map_pairs_to_list(pair.clone().into_inner()),
+        Rule::sexpr => {
+            let mut items = Cell::nil();
+            let mut pairs = pair.clone().into_inner();
+            let mut quoted = false;
+            loop {
+                if let Some(pair) = pairs.peek() {
+                    if pair.as_rule() == Rule::close_paren {
+                        break;
+                    }
+                }
+                let pair = pairs.next().expect("quote, open_paren or item");
+                match pair.as_rule() {
+                    Rule::quote => {
+                        quoted = true;
+                    },
+                    Rule::open_paren => continue,
+                    Rule::value | Rule::symbol | Rule::item => {
+                        items.add(&Cell::from(pair_to_value(pair)));
+                        continue;
+                    },
+                    _ => {
+                        unexpected!(pair);
+                    },
+                }
+            }
+            pairs.next().expect("close_paren");
+            let value = Value::from_iter(items.into_iter());
+            if quoted {
+                value.quote()
+            } else {
+                value
+            }
+        },
+        Rule::nil => Value::nil(),
+        _ => unexpected!(pair),
+    }
 }

@@ -31,6 +31,7 @@ pest_meta = { workspace = true }
 pest_derive = { workspace = true }
 minilisp-util = { workspace = true }
 minilisp-formatter = { workspace = true }
+minilisp-data-structures = { workspace = true }
 
 [dev-dependencies]
 k9 = { workspace = true }
