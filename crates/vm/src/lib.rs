@@ -18,9 +18,12 @@ use minilisp_data_structures::{
 };
 use minilisp_parser::parse_source;
 use minilisp_util::{dbg, format_to_str, unexpected, with_caller};
+use unique_pointer::UniquePointer;
 
-pub type BuiltinFunction =
-    for<'c> fn(&mut VirtualMachine<'c>, Value<'c>) -> Result<Value<'c>>;
+pub type BuiltinFunction = for<'c> fn(
+    UniquePointer<VirtualMachine<'c>>,
+    Value<'c>,
+) -> Result<Value<'c>>;
 
 #[derive(Clone)]
 pub enum Sym<'c> {
@@ -194,7 +197,7 @@ impl<'c> VirtualMachine<'c> {
         list: Value<'c>,
     ) -> Result<Value<'c>> {
         let mut function = try_result!(self.get_symbol_function(sym.symbol()));
-        let result = function(self, list);
+        let result = function(UniquePointer::read_only(self), list);
         match result {
             Ok(item) => Ok(self.eval(item)?),
             Err(error) => Err(runtime_error(

@@ -4,19 +4,20 @@ use std::collections::BTreeMap;
 use minilisp_data_structures as ds;
 use minilisp_data_structures::{AsCell, Quotable, Value};
 use minilisp_util::{dbg, try_result, vec_deque};
+use unique_pointer::UniquePointer;
 
 use crate::helpers::runtime_error;
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn list<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     value: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::list(value))
 }
 
 pub fn cons<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     let cell = ds::cons(ds::car(&list), &mut ds::cdr(&list).as_cell());
@@ -27,7 +28,7 @@ pub fn cons<'c>(
     })
 }
 pub fn quote<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     value: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(match &value {
@@ -46,21 +47,21 @@ pub fn quote<'c>(
     })
 }
 pub fn backquote<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(list)
 }
 
 pub fn car<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::car(&list))
 }
 
 pub fn cdr<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::cdr(&list))

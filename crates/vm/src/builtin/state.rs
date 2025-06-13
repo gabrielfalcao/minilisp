@@ -5,12 +5,13 @@ use minilisp_data_structures::{
     append, car, cdr, list, AsSymbol, Cell, Value,
 };
 use minilisp_util::{dbg, try_result};
+use unique_pointer::UniquePointer;
 
 use crate::helpers::runtime_error;
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn setq<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     // let list = vm.eval_list_as_items(list)?;
@@ -36,7 +37,7 @@ pub fn setq<'c>(
 
 
 pub fn defun<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     let name = car(&list).as_symbol();

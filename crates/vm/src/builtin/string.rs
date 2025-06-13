@@ -3,11 +3,12 @@ use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
 
 use minilisp_data_structures::{append, car, cdr, list, Cell, Value};
 use minilisp_util::{dbg, try_result};
+use unique_pointer::UniquePointer;
 
 use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn print<'c>(
-    vm: &mut VirtualMachine<'c>,
+    mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     println!(

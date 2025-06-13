@@ -68,11 +68,16 @@ fn test_compound_arithmetic() -> Result<()> {
             Value::symbol("*"),
             Value::integer(3i64),
             Value::integer(7i64),
-        ])
+        ]),
+        list([
+            Value::symbol("*"),
+            Value::integer(4i64),
+            Value::integer(5i64),
+        ]),
+        Value::integer(1i64),
     ]);
 
-
     let val = vm.eval(ast)?;
-    assert_equal!(val, Value::integer(21));
+    assert_equal!(val, Value::integer(42));
     Ok(())
 }

@@ -41,7 +41,7 @@ pub fn parse_source<'a>(input: &'a str) -> Result<'a, Value<'a>> {
     Ok(nodes)
 }
 
-pub fn map_pairs_to_list<'a>(mut pairs: Pairs<'a, Rule>) -> Value<'a> {
+pub fn map_pairs_to_list<'a>(pairs: Pairs<'a, Rule>) -> Value<'a> {
     pairs.map(|pair| pair_to_value(pair)).collect()
 }
 pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
