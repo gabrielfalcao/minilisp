@@ -472,6 +472,55 @@ where
     }
 }
 
+
+pub struct CellIterator<'c> {
+    cell: UniquePointer<Cell<'c>>,
+}
+
+impl<'c> CellIterator<'c> {
+    pub fn new(cell: Cell<'c>) -> CellIterator<'c> {
+        CellIterator {
+            cell: UniquePointer::from_ref(&cell),
+        }
+    }
+
+    pub fn item(&self) -> Option<&Cell<'c>> {
+        self.cell.as_ref()
+    }
+
+    pub fn tail(&self) -> Option<&Cell<'c>> {
+        if let Some(cell) = self.cell.as_ref() {
+            cell.tail()
+        } else {
+            None
+        }
+    }
+}
+impl<'c> Iterator for CellIterator<'c> {
+    type Item = Value<'c>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cell.is_not_null() {
+            let value = self.cell.inner_ref().head();
+            let next_tail = self.cell.inner_ref().tail.clone();
+            self.cell = next_tail;
+            value
+        } else {
+            None
+        }
+    }
+}
+
+impl<'c> IntoIterator for Cell<'c> {
+    type IntoIter = CellIterator<'c>;
+    type Item = Value<'c>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CellIterator::new(self)
+    }
+}
+
+
 // // // // // impl<'c> From<&'c str> for Cell<'c> {
 // // // // //     fn from(value: &'c str) -> Cell<'c> {
 // // // // //         let value = Value::from(value);
@@ -532,50 +581,3 @@ where
 //         self.to_vec().as_slice()
 //     }
 // }
-
-pub struct CellIterator<'c> {
-    cell: UniquePointer<Cell<'c>>,
-}
-
-impl<'c> CellIterator<'c> {
-    pub fn new(cell: Cell<'c>) -> CellIterator<'c> {
-        CellIterator {
-            cell: UniquePointer::from_ref(&cell),
-        }
-    }
-
-    pub fn item(&self) -> Option<&Cell<'c>> {
-        self.cell.as_ref()
-    }
-
-    pub fn tail(&self) -> Option<&Cell<'c>> {
-        if let Some(cell) = self.cell.as_ref() {
-            cell.tail()
-        } else {
-            None
-        }
-    }
-}
-impl<'c> Iterator for CellIterator<'c> {
-    type Item = Value<'c>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.cell.is_not_null() {
-            let value = self.cell.inner_ref().head();
-            let next_tail = self.cell.inner_ref().tail.clone();
-            self.cell = next_tail;
-            value
-        } else {
-            None
-        }
-    }
-}
-
-impl<'c> IntoIterator for Cell<'c> {
-    type IntoIter = CellIterator<'c>;
-    type Item = Value<'c>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        CellIterator::new(self)
-    }
-}

@@ -1,6 +1,3 @@
-use std::borrow::Cow;
-
-use k9::assert_equal;
 use minilisp_data_structures::{
     assert_debug_equal, assert_display_equal, Cell, Value,
 };

@@ -1,6 +1,6 @@
 #![allow(unused)]
 use std::fmt::{Debug, Display, Formatter};
-
+use std::borrow::Cow;
 use unique_pointer::UniquePointer;
 
 use crate::{AsValue, Quotable, Value};
@@ -8,21 +8,6 @@ use crate::{AsValue, Quotable, Value};
 pub trait AsSymbol<'c> {
     fn as_symbol(&self) -> Symbol<'c>;
 }
-//// impl<'c> AsSymbol for str {
-////     fn as_symbol(&self) -> Symbol<'c> {
-////         Symbol::new(self)
-////     }
-//// }
-//// impl<'c> AsSymbol for String {
-////     fn as_symbol(&self) -> Symbol<'c> {
-////         Symbol::new(self)
-////     }
-//// }
-//// impl<'c> AsSymbol for Cow<'c, str> {
-////     fn as_symbol(&self) -> Symbol<'c> {
-////         Symbol::new(&self)
-////     }
-//// }
 
 #[derive(Clone, PartialOrd, Ord, Default, PartialEq, Eq)]
 pub struct Symbol<'c> {
@@ -113,6 +98,17 @@ impl<'c> AsSymbol<'c> for String {
 impl<'c> AsSymbol<'c> for &str {
     fn as_symbol(&self) -> Symbol<'c> {
         Symbol::new(*self)
+    }
+}
+
+impl<'c> AsSymbol<'c> for str {
+    fn as_symbol(&self) -> Symbol<'c> {
+        Symbol::new(self)
+    }
+}
+impl<'c> AsSymbol<'c> for Cow<'c, str> {
+    fn as_symbol(&self) -> Symbol<'c> {
+        Symbol::new(&self)
     }
 }
 
