@@ -1,6 +1,8 @@
+use minilisp_formatter::highlight;
 use minilisp_parser::parse_source;
+use minilisp_repl::Result;
 use minilisp_util::color;
-use minilisp_vm::{Result, VirtualMachine};
+use minilisp_vm::VirtualMachine;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
@@ -21,7 +23,7 @@ fn repl<'a>() -> Result<()> {
     let mut vm = VirtualMachine::new();
     print!("\x1b[2J\x1b[3J\x1b[H");
     println!("minilisp VM version {}", env!("CARGO_PKG_VERSION"));
-    let mut rl = DefaultEditor::new().unwrap();
+    let mut rl = DefaultEditor::new()?;
 
     if rl.load_history(".minilisp.history").is_err() {
         println!("No previous history.");
@@ -34,7 +36,7 @@ fn repl<'a>() -> Result<()> {
         match readline {
             Ok(line) => {
                 let line: &'a str = line.clone().leak();
-                rl.add_history_entry(line).unwrap();
+                rl.add_history_entry(line)?;
                 match line.clone().trim() {
                     "@" => {
                         println!("{:#?}", vm.symbols());
@@ -42,7 +44,13 @@ fn repl<'a>() -> Result<()> {
                     },
                     _ => match parse_source(line) {
                         Ok(value) => {
-                            println!("{}", vm.eval_ast(value)?);
+                            println!(
+                                "{}",
+                                highlight(
+                                    vm.eval(value)?.to_string(),
+                                    "lisp"
+                                )?
+                            );
                         },
                         Err(error) => {
                             print_error(error);
@@ -65,6 +73,6 @@ fn repl<'a>() -> Result<()> {
             },
         }
     }
-    rl.save_history(".minilisp.history").unwrap();
+    rl.save_history(".minilisp.history")?;
     Ok(())
 }

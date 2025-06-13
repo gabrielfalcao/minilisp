@@ -6,6 +6,7 @@ pub enum ErrorType {
     SyntectError,
     FormatError,
     RuntimeError,
+    FormatterError,
     ReplError,
 }
 impl std::fmt::Display for ErrorType {
@@ -18,6 +19,7 @@ impl std::fmt::Display for ErrorType {
                 Self::SyntectError => "SyntectError",
                 Self::FormatError => "FormatError",
                 Self::RuntimeError => "RuntimeError",
+                Self::FormatterError => "FormatterError",
                 Self::ReplError => "ReplError",
             }
         )
@@ -45,11 +47,11 @@ impl From<syntect::Error> for Error {
         Error::new(e, ErrorType::SyntectError)
     }
 }
-impl From<rustyline::Error> for Error {
-    fn from(e: rustyline::Error) -> Self {
-        Error::new(e, ErrorType::ReplError)
-    }
-}
+// impl From<rustyline::Error> for Error {
+//     fn from(e: rustyline::Error) -> Self {
+//         Error::new(e, ErrorType::ReplError)
+//     }
+// }
 impl From<rustyline::error::ReadlineError> for Error {
     fn from(e: rustyline::error::ReadlineError) -> Self {
         Error::new(e, ErrorType::ReplError)
@@ -59,5 +61,11 @@ impl From<rustyline::error::ReadlineError> for Error {
 impl From<minilisp_vm::Error> for Error {
     fn from(e: minilisp_vm::Error) -> Self {
         Error::new(e, ErrorType::RuntimeError)
+    }
+}
+
+impl From<minilisp_formatter::Error> for Error {
+    fn from(e: minilisp_formatter::Error) -> Self {
+        Error::new(e, ErrorType::FormatterError)
     }
 }
