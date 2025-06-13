@@ -1,10 +1,13 @@
 use minilisp_formatter::highlight;
 use minilisp_parser::parse_source;
-use minilisp_repl::Result;
+use minilisp_repl::{Result, VirtualMachinePrompt};
 use minilisp_util::color;
 use minilisp_vm::VirtualMachine;
 use rustyline::error::ReadlineError;
-use rustyline::DefaultEditor;
+use rustyline::history::FileHistory;
+use rustyline::{
+    Changeset, CompletionType, Config, Context, DefaultEditor, Editor, Helper,
+};
 
 fn print_error<T: std::fmt::Display>(error: T) {
     eprintln!(
@@ -19,25 +22,50 @@ fn print_error<T: std::fmt::Display>(error: T) {
 fn main() -> Result<()> {
     Ok(repl()?)
 }
-fn repl<'a>() -> Result<()> {
-    let mut vm = VirtualMachine::new();
+fn clear_screen() {
     print!("\x1b[2J\x1b[3J\x1b[H");
+}
+fn header() {
+    clear_screen();
     println!("minilisp VM version {}", env!("CARGO_PKG_VERSION"));
-    let mut rl = DefaultEditor::new()?;
-
-    if rl.load_history(".minilisp.history").is_err() {
-        println!("No previous history.");
-    }
+}
+fn help() {
     println!("\tHELP:");
     println!("\ttype `@' to see the symbol table");
     println!("\ttry arithmetic expressions such as `(* 4 (+ 3 2))'");
+}
+fn repl<'a>() -> Result<()> {
+    let config = Config::builder()
+        // .history_ignore_dups(true)?
+        // .history_ignore_space(false)
+        .edit_mode(rustyline::config::EditMode::Emacs)
+        .auto_add_history(true)
+        .color_mode(rustyline::config::ColorMode::Enabled)
+        .behavior(rustyline::config::Behavior::PreferTerm)
+        .tab_stop(4)
+        .check_cursor_position(true)
+        .build();
+
+    let mut vm = VirtualMachine::new();
+    let mut vmp = VirtualMachinePrompt::new(&vm);
+    let mut history =
+        rustyline::history::FileHistory::with_config(config.clone());
+    let mut rl = Editor::<VirtualMachinePrompt, FileHistory>::with_history(
+        config, history,
+    )?;
+    rl.set_helper(Some(vmp));
+    header();
+    if rl.load_history(".minilisp.history").is_err() {
+        println!("No previous history.");
+    }
+    help();
     loop {
         let readline = rl.readline(": ");
         match readline {
             Ok(line) => {
                 let line: &'a str = line.clone().leak();
                 rl.add_history_entry(line)?;
-                match line.clone().trim() {
+                match line.trim() {
                     "@" => {
                         println!("{:#?}", vm.symbols());
                         continue;
@@ -47,7 +75,7 @@ fn repl<'a>() -> Result<()> {
                             println!(
                                 "{}",
                                 highlight(
-                                    vm.eval(value)?.to_string(),
+                                    vm.eval_ast(value)?.to_string(),
                                     "lisp"
                                 )?
                             );
