@@ -20,6 +20,7 @@ autotests = false
 minilisp-util = { workspace = true }
 minilisp-parser = { workspace = true }
 minilisp-formatter = { workspace = true }
+minilisp-data-structures = { workspace = true }
 iocore = { workspace = true }
 
 [features]

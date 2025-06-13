@@ -1,65 +1,60 @@
 #![allow(unused)]
 use k9::assert_equal;
-use minilisp_parser::{Item, Value};
+use minilisp_data_structures::{append, car, cdr, cons, list, Value};
 use minilisp_vm::{Result, VirtualMachine};
-use minilisp_util::{vec_deque};
-
 
 #[test]
 fn test_multiply_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
-    let ast = Item::List(vec_deque![
-        Item::symbol("*"),
-        Item::Value(Value::Integer(3)),
-        Item::Value(Value::Integer(7)),
+    let ast = list([
+        Value::symbol("*"),
+        Value::integer(3i64),
+        Value::integer(7i64),
     ]);
 
     let val = vm.eval_ast(ast)?;
-    assert_equal!(val, Value::Integer(21));
+    assert_equal!(val, Value::integer(21));
     Ok(())
 }
 
 #[test]
 fn test_add_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
-    let ast = Item::List(vec_deque![
-        Item::symbol("+"),
-        Item::Value(Value::UnsignedInteger(2)),
-        Item::Value(Value::UnsignedInteger(2)),
+    let ast = list([
+        Value::symbol("+"),
+        Value::unsigned_integer(2u64),
+        Value::unsigned_integer(2u64),
     ]);
 
     let val = vm.eval_ast(ast)?;
-    assert_equal!(val, Value::UnsignedInteger(4));
+    assert_equal!(val, Value::unsigned_integer(4u64));
     Ok(())
 }
-
 
 #[test]
 fn test_subtract_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
-    let ast = Item::List(vec_deque![
-        Item::symbol("-"),
-        Item::Value(Value::UnsignedInteger(5)),
-        Item::Value(Value::UnsignedInteger(2)),
+    let ast = list([
+        Value::symbol("-"),
+        Value::unsigned_integer(5u64),
+        Value::unsigned_integer(2u64),
     ]);
 
     let val = vm.eval_ast(ast)?;
-    assert_equal!(val, Value::UnsignedInteger(3));
+    assert_equal!(val, Value::unsigned_integer(3u64));
     Ok(())
 }
-
-
 
 #[test]
 fn test_divide_numbers() -> Result<()> {
     let mut vm = VirtualMachine::new();
-    let ast = Item::List(vec_deque![
-        Item::symbol("/"),
-        Item::Value(Value::Float(30.0)),
-        Item::Value(Value::Float(3.0)),
+    let ast = list([
+        Value::symbol("/"),
+        Value::float(30.0),
+        Value::float(3.0),
     ]);
 
     let val = vm.eval_ast(ast)?;
-    assert_equal!(val, Value::Float(10.0));
+    assert_equal!(val, Value::float(10.0));
     Ok(())
 }

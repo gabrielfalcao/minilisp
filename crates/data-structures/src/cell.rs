@@ -1,4 +1,5 @@
 #![allow(unused)]
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::iter::{Extend, IntoIterator, Iterator};
 use std::ops::Deref;
@@ -363,6 +364,21 @@ impl<'c> From<i64> for Cell<'c> {
         Cell::new(Value::from(value))
     }
 }
+impl<'c> From<&str> for Cell<'c> {
+    fn from(value: &str) -> Cell<'c> {
+        Cell::new(Value::symbol(value))
+    }
+}
+impl<'c> From<String> for Cell<'c> {
+    fn from(value: String) -> Cell<'c> {
+        Cell::new(Value::string(value))
+    }
+}
+impl<'c> From<Cow<'c, str>> for Cell<'c> {
+    fn from(value: Cow<'c, str>) -> Cell<'c> {
+        Cell::new(Value::string(&value))
+    }
+}
 
 impl<'c> PartialEq<Cell<'c>> for Cell<'c> {
     fn eq(&self, other: &Cell<'c>) -> bool {
@@ -481,15 +497,6 @@ impl<'c> AsValue<'c> for Cell<'c> {
         } else {
             Value::List(self.clone())
         }
-    }
-}
-
-impl<'c, T> From<T> for Cell<'c>
-where
-    T: AsSymbol<'c>,
-{
-    fn from(sym: T) -> Cell<'c> {
-        Cell::from(Value::from(sym.as_symbol()))
     }
 }
 

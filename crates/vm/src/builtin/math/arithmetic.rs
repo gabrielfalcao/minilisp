@@ -1,17 +1,19 @@
 use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
 
-use minilisp_parser::{Item, Value};
+use minilisp_data_structures::{append, car, cdr, list, Cell, Value, AsInteger, AsUnsignedInteger, AsFloat};
 use minilisp_util::{dbg, try_result};
 
-use crate::helpers::{unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items};
+use crate::helpers::{
+    unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
+};
 use crate::{
-    impl_arithmetic_operation, runtime_error, with_caller, Error, ErrorType, Result,
-    VirtualMachine,
+    impl_arithmetic_operation, runtime_error, with_caller, Error, ErrorType,
+    Result, VirtualMachine,
 };
 
 impl_arithmetic_operation!(+ add);
-impl_arithmetic_operation!(-sub);
-impl_arithmetic_operation!(*mul);
+impl_arithmetic_operation!(- sub);
+impl_arithmetic_operation!(* mul);
 impl_arithmetic_operation!(/ div);
 
 #[macro_export]
@@ -22,8 +24,8 @@ macro_rules! impl_arithmetic_operation {
     ) => {
         pub fn $function_name<'c>(
             vm: &mut VirtualMachine<'c>,
-            list: VecDeque<Item<'c>>,
-        ) -> Result<Item<'c>> {
+            list: Value<'c>,
+        ) -> Result<Value<'c>> {
             let argcount = list.len();
             if argcount < 2 {
                 return Err(with_caller!(runtime_error(
@@ -35,8 +37,8 @@ macro_rules! impl_arithmetic_operation {
                     None
                 )));
             }
-            match list.front() {
-                Some(Item::Value(Value::UnsignedInteger(first_operand))) => {
+            match &car(&list) {
+                Value::UnsignedInteger(first_operand)=> {
                     let mut operands =
                         try_result!(unpack_unsigned_integer_items(vm, list).map_err(|error| {
                             Error::with_previous_error(
@@ -46,10 +48,11 @@ macro_rules! impl_arithmetic_operation {
                             )
                         }));
 
-                    let first = operands.pop_front().unwrap();
-                    Ok(Item::Value(Value::UnsignedInteger(operands.into_iter().fold(first, |lhs, rhs| lhs $operator rhs))))
+                    let first = car(&operands).as_unsigned_integer();
+                    dbg!(&first_operand, &first, operands);
+                    Ok(Value::UnsignedInteger(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_unsigned_integer() $operator rhs.as_unsigned_integer())))
                 },
-                Some(Item::Value(Value::Integer(first_operand))) => {
+                Value::Integer(first_operand) => {
                     let mut operands = try_result!(unpack_integer_items(vm, list).map_err(|error| {
                         Error::with_previous_error(
                             format!("call to {:#?} function", stringify!($operator)),
@@ -57,11 +60,11 @@ macro_rules! impl_arithmetic_operation {
                             Some(error),
                         )
                     }));
-                    let first = operands.pop_front().unwrap();
-                    Ok(Item::Value(Value::Integer(operands.into_iter().fold(first, |lhs, rhs| lhs $operator rhs))))
-
+                    let first = car(&operands).as_integer();
+                    dbg!(&first_operand, &first, operands);
+                    Ok(Value::Integer(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_integer() $operator rhs.as_integer())))
                 },
-                Some(Item::Value(Value::Float(first_operand))) => {
+                Value::Float(first_operand) => {
                     let mut operands = try_result!(unpack_float_items(vm, list).map_err(|error| {
                         Error::with_previous_error(
                             format!("call to {:#?} function", stringify!($operator)),
@@ -69,18 +72,19 @@ macro_rules! impl_arithmetic_operation {
                             Some(error),
                         )
                     }));
-                    let first = operands.pop_front().unwrap();
-                    Ok(Item::Value(Value::Float(operands.into_iter().fold(first, |lhs, rhs| lhs $operator rhs))))
+                    let first = car(&operands).as_float();
+                    dbg!(&first_operand, &first, operands);
+                    Ok(Value::Float(cdr(&operands).into_iter().fold(first, |lhs, rhs| lhs.as_float() $operator rhs.as_float())))
 
                 },
-                Some(Item::Symbol(sym)) => {
+                Value::Symbol(sym) => {
                     todo!("evaluate symbol: {:#?}", sym);
                 },
-                Some(item) => Err(with_caller!(runtime_error(
+                value => Err(with_caller!(runtime_error(
                     format!(
                         "{:#?} called with non-numerical value: {:#?}",
                         stringify!($operator),
-                        item
+                        value
                     ),
                     None
                 ))),

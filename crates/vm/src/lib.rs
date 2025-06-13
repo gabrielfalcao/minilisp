@@ -4,140 +4,154 @@
 use std::borrow::Cow;
 
 pub use errors::{Error, ErrorType, Result};
-use minilisp_util::vec_deque;
 pub mod builtin;
 pub mod errors;
 pub mod macros;
 use std::cmp::{Ordering, PartialEq, PartialOrd};
-use std::collections::{BTreeMap, BinaryHeap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
+
 pub mod helpers;
 pub use helpers::{
     runtime_error, unpack_float_items, unpack_integer_items, unpack_unsigned_integer_items,
 };
-use minilisp_parser::{Item, Value};
-use minilisp_util::{format_to_str, unexpected, with_caller}; //BinaryHeap;
+use minilisp_data_structures::{append, car, cdr, list, Cell, Value, Symbol};
+use minilisp_util::{format_to_str, unexpected, with_caller};
 
 pub type BuiltinFunction =
-    for<'c> fn(&mut VirtualMachine<'c>, VecDeque<Item<'c>>) -> Result<Item<'c>>;
+    for<'c> fn(&mut VirtualMachine<'c>, Value<'c>) -> Result<Value<'c>>;
 
 #[derive(Clone)]
-pub enum Symbol<'c> {
-    Item(Item<'c>),
+pub enum Sym<'c> {
     Value(Value<'c>),
-    BuiltinFunction(Cow<'c, str>, BuiltinFunction),
+    BuiltinFunction(Symbol<'c>, BuiltinFunction),
 }
 
-impl<'c> Debug for Symbol<'c> {
+impl<'c> Debug for Sym<'c> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Symbol::Value(value) => format!("{:#?}", value),
-                Symbol::Item(item) => format!("{:#?}", item),
-                Symbol::BuiltinFunction(name, _) => format!("builtin-function"),
+                Sym::Value(value) => format!("{:#?}", value),
+                Sym::BuiltinFunction(name, _) => format!("builtin-function"),
             }
         )
     }
 }
-impl<'c> Symbol<'c> {
-    pub fn as_item(&self) -> Item<'c> {
+impl<'c> Sym<'c> {
+    pub fn as_value(&self) -> Value<'c> {
         match self {
-            Symbol::Item(item) => item.clone(),
-            Symbol::Value(value) => Item::Value(value.clone()),
-            Symbol::BuiltinFunction(sym, function) => {
+            Sym::Value(value) => value.clone(),
+            Sym::BuiltinFunction(sym, function) => {
                 warn!(format!("symbol {} is a builtin-function", sym));
-                Item::symbol(sym)
+                Value::symbol(sym)
             },
         }
     }
 }
-impl<'c> Hash for Symbol<'c> {
+impl<'c> Hash for Sym<'c> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_item().hash(state)
+        self.as_value().hash(state)
     }
 }
-impl<'c> PartialEq for Symbol<'c> {
-    fn eq(&self, other: &Symbol<'c>) -> bool {
-        self.as_item().eq(&other.as_item())
+impl<'c> PartialEq for Sym<'c> {
+    fn eq(&self, other: &Sym<'c>) -> bool {
+        self.as_value().eq(&other.as_value())
     }
 }
-impl<'c> PartialOrd for Symbol<'c> {
-    fn partial_cmp(&self, other: &Symbol<'c>) -> Option<Ordering> {
-        self.as_item().partial_cmp(&other.as_item())
+impl<'c> PartialOrd for Sym<'c> {
+    fn partial_cmp(&self, other: &Sym<'c>) -> Option<Ordering> {
+        self.as_value().partial_cmp(&other.as_value())
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct VirtualMachine<'c> {
-    symbols: BTreeMap<String, Symbol<'c>>,
+    symbols: BTreeMap<Symbol<'c>, Sym<'c>>,
     stack: VecDeque<VirtualMachine<'c>>,
 }
 
 impl<'c> VirtualMachine<'c> {
     pub fn new() -> VirtualMachine<'c> {
         let mut vm = VirtualMachine::<'c>::default();
+        // state side-effect functions
         vm.register_builtin_function("setq", builtin::state::setq);
-        vm.register_builtin_function("list", builtin::list::list);
+
+        // list functions
         vm.register_builtin_function("car", builtin::list::car);
         vm.register_builtin_function("cdr", builtin::list::cdr);
         vm.register_builtin_function("cons", builtin::list::cons);
+        vm.register_builtin_function("list", builtin::list::list);
         vm.register_builtin_function("quote", builtin::list::quote);
+        vm.register_builtin_function("print", builtin::string::print);
         vm.register_builtin_function("backquote", builtin::list::backquote);
+
+        // arithmetic functions
+        vm.register_builtin_function("*", builtin::math::arithmetic::mul);
         vm.register_builtin_function("+", builtin::math::arithmetic::add);
         vm.register_builtin_function("-", builtin::math::arithmetic::sub);
-        vm.register_builtin_function("*", builtin::math::arithmetic::mul);
         vm.register_builtin_function("/", builtin::math::arithmetic::div);
-        vm.register_builtin_function("print", builtin::string::print);
         vm
     }
 
-    pub fn register_builtin_function(&mut self, sym: &'c str, function: BuiltinFunction) {
+    pub fn register_builtin_function(
+        &mut self,
+        sym: &'c str,
+        function: BuiltinFunction,
+    ) {
         self.symbols.insert(
-            sym.to_string(),
-            Symbol::<'c>::BuiltinFunction(Cow::from(sym.to_string()), function),
+            Symbol::new(sym),
+            Sym::<'c>::BuiltinFunction(Symbol::new(sym), function),
         );
     }
 
-    pub fn symbols(&self) -> BTreeMap<String, Symbol<'c>> {
+    pub fn symbols(&self) -> BTreeMap<Symbol<'c>, Sym<'c>> {
         self.symbols.clone()
     }
 
-    pub fn get_symbol_function(&mut self, sym: &str) -> Result<BuiltinFunction> {
+    pub fn get_symbol_function(
+        &mut self,
+        sym: &str,
+    ) -> Result<BuiltinFunction> {
         let symbol = try_result!(self.get_symbol(sym)).clone();
         match symbol {
-            Symbol::Item(item) => Err(with_caller!(runtime_error(
+            Sym::Value(item) => Err(with_caller!(runtime_error(
                 format!("symbol {:#?} is not a function: {:#?}", sym, item),
                 None
             ))),
-            Symbol::Value(value) => Err(with_caller!(runtime_error(
+            Sym::Value(value) => Err(with_caller!(runtime_error(
                 format!("symbol {:#?} is not a function: {:#?}", sym, value),
                 None
             ))),
 
-            Symbol::BuiltinFunction(_sym, function) => Ok(function),
+            Sym::BuiltinFunction(_sym, function) => Ok(function),
         }
     }
 
-    pub fn get_symbol(&mut self, sym: &str) -> Result<&Symbol<'c>> {
-        if !self.symbols.contains_key(sym) {
-            self.symbols.insert(sym.to_string(), Symbol::Item(Item::symbol(sym)));
+    pub fn get_symbol(&mut self, sym: &str) -> Result<&Sym<'c>> {
+        let sym = Symbol::new(sym);
+        if !self.symbols.contains_key(&sym) {
+            self.symbols
+                .insert(sym.clone(), Sym::Value(Value::symbol(&sym)));
         }
-        if let Some(symbol) = self.symbols.get(sym) {
+        if let Some(symbol) = self.symbols.get(&sym) {
             Ok(symbol)
         } else {
-            Err(with_caller!(runtime_error(format!("undefined symbol: {:#?}", sym), None)))
+            Err(with_caller!(runtime_error(
+                format!("undefined symbol: {:#?}", sym),
+                None
+            )))
         }
     }
 
     pub fn eval_symbol_function(
         &mut self,
-        sym: &str,
-        list: VecDeque<Item<'c>>,
+        sym: &Symbol<'c>,
+        list: Value<'c>,
     ) -> Result<Value<'c>> {
-        let mut function = try_result!(self.get_symbol_function(sym));
+        let mut function = try_result!(self.get_symbol_function(sym.symbol()));
         let result = function(self, list);
         match result {
             Ok(item) => Ok(self.eval_ast(item)?),
@@ -148,64 +162,57 @@ impl<'c> VirtualMachine<'c> {
         }
     }
 
-    pub fn eval_ast(&mut self, mut item: Item<'c>) -> Result<Value<'c>> {
-        match item {
-            Item::List(mut list) => {
+    pub fn eval_ast(&mut self, item: Value<'c>) -> Result<Value<'c>> {
+        match &item {
+            Value::List(ref list) => {
                 if list.is_empty() {
                     return Ok(Value::Nil);
                 }
-                match list.pop_front() {
-                    Some(Item::Symbol(symbol)) =>
-                        Ok(try_result!(self.eval_symbol_function(&symbol, list))),
-                    item => Ok(Value::List(list.iter().map(|item| item.as_value()).collect())),
+                match car(&item) {
+                    Value::Symbol(ref symbol) => Ok(try_result!(
+                        self.eval_symbol_function(symbol, cdr(&item))
+                    )),
+                    _ => Ok(car(&item)),
                 }
             },
-            Item::Symbol(symbol) => Ok(try_result!(self.eval_symbol(&symbol))),
-            Item::Value(value) => Ok(value),
+            Value::Symbol(symbol) =>
+                Ok(try_result!(self.eval_symbol(symbol.symbol()))),
+            value => Ok(value.clone()),
         }
     }
 
-    pub fn setq(&mut self, sym: String, item: Item<'c>) -> Result<Item<'c>> {
+    pub fn setq(&mut self, sym: Symbol<'c>, item: Value<'c>) -> Result<Value<'c>> {
         //("setq", &item);
-        let symbol_value = Symbol::Value(self.eval_ast(item.clone())?);
-        let previous = self.symbols.insert(sym.clone(), symbol_value.clone());
+        let symbol_value = Sym::Value(self.eval_ast(item.clone())?);
+        let previous = self
+            .symbols
+            .insert(sym.clone(), symbol_value.clone());
         //("setq", &self.symbols);
         let item = match previous.unwrap_or_else(|| symbol_value) {
-            Symbol::Value(value) => Item::Value(value.clone()),
-            Symbol::Item(item) => item.clone(),
-            Symbol::BuiltinFunction(sym, _) => Item::Symbol(sym.clone()),
+            Sym::Value(value) => value.clone(),
+            Sym::BuiltinFunction(sym, _) => Value::symbol(sym.clone()),
         };
 
         Ok(item)
     }
 
-    pub fn eval_list_as_items(&mut self, mut list: VecDeque<Item<'c>>) -> Result<VecDeque<Item<'c>>> {
-        let items = match self.eval_list(list)? {
-            Value::Symbol(sym) => vec_deque![Item::Symbol(sym)],
-            Value::List(list) => list.iter().map(|value| value.as_item()).collect(),
-            value => vec_deque![Item::Value(value)],
-        };
-        Ok(items)
-    }
-
-    pub fn eval_list(&mut self, mut list: VecDeque<Item<'c>>) -> Result<Value<'c>> {
+    pub fn eval_list(&mut self, mut list: Value<'c>) -> Result<Value<'c>> {
         //(&list);
         if list.is_empty() {
             Ok(Value::Nil)
         } else {
-            match list.front().clone() {
-                Some(Item::Symbol(sym)) => {
+            match car(&list) {
+                Value::Symbol(ref sym) => {
                     //(&sym);
                     Ok(try_result!(
-                        self.eval_symbol_function(sym, list.range(1..).map(Clone::clone).collect())
+                        self.eval_symbol_function(sym, cdr(&list))
                     ))
                 },
-                Some(Item::List(list)) => Ok(try_result!(self.eval_list(list.clone()))),
-                Some(Item::Value(value)) => Ok(value.clone()),
-                None => {
-                    //(list.front());
-                    Ok(Value::String(Cow::from(format!("{:#?}", list))))
-                },
+                Value::List(ref list) =>
+                    Ok(try_result!(self.eval_list(Value::list(list.clone())))),
+                value => {
+                    unexpected!(value)
+                }
             }
         }
     }
@@ -214,21 +221,9 @@ impl<'c> VirtualMachine<'c> {
         let symbol = try_result!(self.get_symbol(sym));
         //(&sym, &symbol);
         match symbol {
-            Symbol::Value(value) => Ok(value.clone()),
-            Symbol::Item(item) => match item {
-                Item::Value(value) => Ok(value.clone()),
-                Item::List(list) => {
-                    let debug = format!("{:#?}", list);
-                    Ok(Value::String(Cow::from(debug.as_str().to_string())))
-                },
-                Item::Symbol(item_sym) => {
-                    //(&item_sym);
-                    let debug = format!("{:#?}", item_sym);
-                    Ok(Value::String(Cow::from(debug.as_str().to_string())))
-                },
-            },
-            Symbol::BuiltinFunction(sym, _) =>
-                Ok(Value::String(Cow::from(format!("builtin function {:#?}", sym)))),
+            Sym::Value(value) => Ok(value.clone()),
+            Sym::BuiltinFunction(sym, _) =>
+                Ok(Value::string(format!("builtin function {:#?}", sym))),
         }
     }
 }

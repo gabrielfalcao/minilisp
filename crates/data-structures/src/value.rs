@@ -14,7 +14,9 @@ pub use float::{AsFloat, Float};
 pub mod unsigned_integer;
 pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
 
-use crate::{AsCell, AsNumber, AsSymbol, Cell, Quotable, Symbol};
+use crate::{
+    AsCell, AsNumber, AsSymbol, Cell, ListIterator, Quotable, Symbol,
+};
 
 pub trait ValueListIterator<'c>:
     IntoIterator<Item = Value<'c>> + Quotable
@@ -183,6 +185,50 @@ impl<'c> Value<'c> {
                 }
             },
             _ => self.clone(),
+        }
+    }
+
+    pub fn is_integer(&self) -> bool {
+        match self {
+            Value::Integer(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unsigned_integer(&self) -> bool {
+        match self {
+            Value::UnsignedInteger(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_float(&self) -> bool {
+        match self {
+            Value::Float(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        match self {
+            Value::String(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_symbol(&self) -> bool {
+        match self {
+            Value::Symbol(_) => true,
+            Value::QuotedList(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_list(&self) -> bool {
+        match self {
+            Value::List(_) => true,
+            Value::QuotedList(_) => true,
+            _ => false,
         }
     }
 }
@@ -489,15 +535,14 @@ impl<'c> AsCell<'c> for &Value<'c> {
     }
 }
 
-// impl<'c, const N: usize> ValueListIterator<'c> for [Value<'c>; N] {
-//     fn list_iter_values(&self) -> Value<'c> {
-//         let mut cell = Cell::nil();
-//         for item in self {
-//             cell.add(&Cell::from(item));
-//         }
-//         Value::list(cell)
-//     }
-// }
+impl<'c> ListIterator<'c, Value<'c>> for Value<'c> {
+    fn iter_cells(&self) -> Cell<'c> {
+        match self {
+            Value::List(cell) | Value::QuotedList(cell) => cell.clone(),
+            _ => Cell::nil(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ValueIterator<'c> {
@@ -665,5 +710,68 @@ impl<'c> Quotable for Value<'c> {
             Value::EmptyQuotedList => true,
             _ => false,
         }
+    }
+}
+
+impl<'c> AsSymbol<'c> for Value<'c> {
+    fn as_symbol(&self) -> Symbol<'c> {
+        match self {
+            Value::Symbol(symbol) => symbol.clone(),
+            Value::QuotedSymbol(symbol) => symbol.clone(),
+            value => {
+                panic!("cannot convert {:#?} to symbol", self)
+            },
+        }
+    }
+}
+
+impl<'c> AsFloat for Value<'c> {
+    fn as_float(&self) -> Float {
+        match self {
+            Value::Float(float) => *float,
+            value => {
+                panic!("cannot convert {:#?} to float", self)
+            },
+        }
+    }
+}
+
+impl<'c> AsInteger for Value<'c> {
+    fn as_integer(&self) -> Integer {
+        match self {
+            Value::Integer(integer) => *integer,
+            value => {
+                panic!("cannot convert {:#?} to integer", self)
+            },
+        }
+    }
+}
+
+impl<'c> AsUnsignedInteger for Value<'c> {
+    fn as_unsigned_integer(&self) -> UnsignedInteger {
+        match self {
+            Value::UnsignedInteger(unsigned_integer) => *unsigned_integer,
+            value => {
+                panic!("cannot convert {:#?} to unsigned integer", self)
+            },
+        }
+    }
+}
+
+impl<'c> AsNumber<f64> for Value<'c> {
+    fn as_number(&self) -> f64 {
+        *self.as_float()
+    }
+}
+
+impl<'c> AsNumber<i64> for Value<'c> {
+    fn as_number(&self) -> i64 {
+        *self.as_integer()
+    }
+}
+
+impl<'c> AsNumber<u32> for Value<'c> {
+    fn as_number(&self) -> u32 {
+        *self.as_unsigned_integer()
     }
 }

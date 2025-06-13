@@ -5,12 +5,11 @@ macro_rules! impl_number_type {
         use std::convert::{AsMut, AsRef};
         use std::fmt::{Debug, Display, Formatter};
         use std::hash::{Hash, Hasher};
-        use std::ops::{Deref, DerefMut};
+        use std::ops::{Add, Deref, DerefMut, Div, Mul, Sub};
 
-        #[allow(unused)]
         use crate::AsNumber;
 
-        pub trait $trait: $crate::AsNumber<$type> {
+        pub trait $trait: AsNumber<$type> {
             fn inner(&self) -> $type {
                 self.as_number()
             }
@@ -25,11 +24,13 @@ macro_rules! impl_number_type {
         impl $name {
             pub fn to_bytes(&self) -> Vec<u8> {
                 let mut prefix = [0u8; 4];
-                let type_bytes = $crate::$name::type_name().as_bytes().to_vec();
+                let type_bytes =
+                    $crate::$name::type_name().as_bytes().to_vec();
                 if type_bytes.len() == 4 {
                     prefix.copy_from_slice(&type_bytes[..]);
                 } else {
-                    prefix[4 - type_bytes.len()..].copy_from_slice(&type_bytes[..]);
+                    prefix[4 - type_bytes.len()..]
+                        .copy_from_slice(&type_bytes[..]);
                 }
                 let mut prefix = prefix.to_vec();
                 prefix.extend(self.inner().to_be_bytes());
@@ -138,12 +139,12 @@ macro_rules! impl_number_type {
         }
         impl $trait for &$type {
             fn $method_name(&self) -> $name {
-                $crate::$name {value: **self }
+                $crate::$name { value: **self }
             }
         }
         impl $trait for $type {
             fn $method_name(&self) -> $name {
-                $crate::$name {value: *self }
+                $crate::$name { value: *self }
             }
         }
         impl $trait for $name {
@@ -151,7 +152,7 @@ macro_rules! impl_number_type {
                 self.clone()
             }
         }
-        impl $crate::AsNumber<$type> for &$name {
+        impl AsNumber<$type> for &$name {
             fn as_number(&self) -> $type {
                 self.value
             }
@@ -159,6 +160,42 @@ macro_rules! impl_number_type {
         impl $trait for &$name {
             fn $method_name(&self) -> $name {
                 (*self).clone()
+            }
+        }
+        impl Add for $name {
+            type Output = Self;
+
+            fn add(self, other: Self) -> Self {
+                $crate::$name {
+                    value: self.inner().add(other.inner()),
+                }
+            }
+        }
+        impl Sub for $name {
+            type Output = Self;
+
+            fn sub(self, other: Self) -> Self {
+                $crate::$name {
+                    value: self.inner().sub(other.inner()),
+                }
+            }
+        }
+        impl Mul for $name {
+            type Output = Self;
+
+            fn mul(self, other: Self) -> Self {
+                $crate::$name {
+                    value: self.inner().mul(other.inner()),
+                }
+            }
+        }
+        impl Div for $name {
+            type Output = Self;
+
+            fn div(self, other: Self) -> Self {
+                $crate::$name {
+                    value: self.inner().div(other.inner()),
+                }
             }
         }
     };
