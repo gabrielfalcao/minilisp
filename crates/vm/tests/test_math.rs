@@ -58,3 +58,21 @@ fn test_divide_numbers() -> Result<()> {
     assert_equal!(val, Value::float(10.0));
     Ok(())
 }
+
+#[test]
+fn test_compound_arithmetic() -> Result<()> {
+    let mut vm = VirtualMachine::new();
+    let ast = list([
+        Value::symbol("+"),
+        list([
+            Value::symbol("*"),
+            Value::integer(3i64),
+            Value::integer(7i64),
+        ])
+    ]);
+
+
+    let val = vm.eval(ast)?;
+    assert_equal!(val, Value::integer(21));
+    Ok(())
+}

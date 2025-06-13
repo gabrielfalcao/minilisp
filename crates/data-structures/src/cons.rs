@@ -6,14 +6,27 @@ pub fn cons<'c, T: AsCell<'c>>(head: T, tail: &mut Cell<'c>) -> Cell<'c> {
     head.add(tail);
     head
 }
-pub fn append<'c, T: AsCell<'c>, I: Iterator<Item = T>>(
-    _cell: &mut Cell<'c>,
-    _iter: I,
-) -> Cell<'c> {
-    Cell::nil()
+pub fn append<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
+    let mut items = Cell::nil();
+    for value in list {
+        match &value {
+            Value::List(h) | Value::QuotedList(h) => {
+                for item in h.clone().into_iter() {
+                    items.add(&Cell::from(item));
+                }
+            },
+            Value::EmptyList |
+            Value::EmptyQuotedList |
+            Value::Nil => {}
+            value => {
+                items.add(&Cell::from(value));
+            }
+        }
+    }
+    Value::list(items)
 }
-pub fn makelist<'c, V: AsValue<'c>>(value: V, count: usize) -> Cell<'c> {
-    Cell::nil()
+pub fn makelist<'c>(value: Value<'c>, count: usize) -> Value<'c> {
+    (0..count).map(|_|value.clone()).collect()
 }
 pub fn car<'c>(value: &Value<'c>) -> Value<'c> {
     match value {

@@ -321,6 +321,11 @@ impl<'c> From<Value<'c>> for Cell<'c> {
         Cell::new(value)
     }
 }
+impl<'c> From<&Value<'c>> for Cell<'c> {
+    fn from(value: &Value<'c>) -> Cell<'c> {
+        Cell::new(value.clone())
+    }
+}
 
 impl<'c> From<u8> for Cell<'c> {
     fn from(value: u8) -> Cell<'c> {
