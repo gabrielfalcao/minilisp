@@ -51,19 +51,7 @@ impl Display for Symbol<'_> {
 }
 impl Debug for Symbol<'_> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            [
-                if self.quoted {
-                    "'".to_string()
-                } else {
-                    String::new()
-                },
-                self.sym.to_string()
-            ]
-            .join("")
-        )
+        write!(f, "{}", &self.sym)
     }
 }
 

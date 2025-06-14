@@ -12,16 +12,12 @@ pub use integer::{AsInteger, Integer};
 pub mod float;
 pub use float::{AsFloat, Float};
 pub mod unsigned_integer;
-pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
 use minilisp_util::dbg;
-use crate::{
-    AsCell, AsNumber, AsSymbol, Cell, ListIterator, Quotable, Symbol,
-};
+pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
 
-pub trait ValueListIterator<'c>:
-    IntoIterator<Item = Value<'c>> + Quotable
-{
-}
+use crate::{AsCell, AsNumber, AsSymbol, Cell, ListIterator, Quotable, Symbol};
+
+pub trait ValueListIterator<'c>: IntoIterator<Item = Value<'c>> + Quotable {}
 // impl <'c, T: IntoIterator<Item = Value<'c>> + Quotable> ValueListIterator<'c> for T {}
 
 pub trait AsValue<'c>: Quotable {
@@ -55,11 +51,11 @@ impl<'c> Value<'c> {
     }
 
     pub fn symbol<T: AsSymbol<'c>>(sym: T) -> Value<'c> {
-        Value::Symbol(sym.as_symbol())
+        Value::Symbol(sym.as_symbol().unquote())
     }
 
     pub fn quoted_symbol<T: AsSymbol<'c>>(sym: T) -> Value<'c> {
-        Value::QuotedSymbol(sym.as_symbol())
+        Value::QuotedSymbol(sym.as_symbol().quote())
     }
 
     pub fn string<T: ToString>(value: T) -> Value<'c> {
@@ -136,8 +132,8 @@ impl<'c> Value<'c> {
         let value = match self {
             Value::Symbol(h) => Value::QuotedSymbol(h.clone().unquote()),
             Value::List(h) => Value::QuotedList(h.clone().unquote()),
-            Value::QuotedSymbol(h) => Value::QuotedSymbol(h.clone().unquote()),
-            Value::QuotedList(h) => Value::QuotedList(h.clone().unquote()),
+            Value::QuotedSymbol(h) => Value::QuotedSymbol(h.clone().quote()),
+            Value::QuotedList(h) => Value::QuotedList(h.clone().quote()),
             _ => self.clone(),
         };
         value.clone()
@@ -176,14 +172,13 @@ impl<'c> Value<'c> {
 
     pub fn unwrap_list(&self) -> Value<'c> {
         match self {
-            Value::List(cell) | Value::QuotedList(cell) => {
+            Value::List(cell) | Value::QuotedList(cell) =>
                 if cell.tail.is_null() {
                     let value = cell.head().unwrap_or_default();
                     value.clone()
                 } else {
                     self.clone()
-                }
-            },
+                },
             _ => self.clone(),
         }
     }
@@ -328,7 +323,7 @@ impl<'c> From<u8> for Value<'c> {
 impl<'c> From<Symbol<'c>> for Value<'c> {
     fn from(value: Symbol<'c>) -> Value<'c> {
         if value.is_quoted() {
-            Value::quoted_symbol(value.unquote())
+            Value::quoted_symbol(value.quote())
         } else {
             Value::symbol(value.unquote())
         }
@@ -337,7 +332,7 @@ impl<'c> From<Symbol<'c>> for Value<'c> {
 impl<'c> From<&Symbol<'c>> for Value<'c> {
     fn from(value: &Symbol<'c>) -> Value<'c> {
         if value.is_quoted() {
-            Value::quoted_symbol(value.unquote())
+            Value::quoted_symbol(value.quote())
         } else {
             Value::symbol(value.unquote())
         }
@@ -392,7 +387,13 @@ impl<'c> From<Option<String>> for Value<'c> {
 }
 impl<'c> From<Cell<'c>> for Value<'c> {
     fn from(cell: Cell<'c>) -> Value<'c> {
-        cell.as_value()
+        let is_quoted = cell.is_quoted();
+        let value = cell.as_value();
+        if is_quoted {
+            value.quote()
+        } else {
+            value
+        }
     }
 }
 // impl<'c> From<List<'c>> for Value<'c> {
@@ -526,16 +527,14 @@ impl<'c> AsCell<'c> for Value<'c> {
                 for item in h.clone().into_iter() {
                     cell.add(&Cell::new(item));
                 }
-                dbg!(&cell);
                 cell
             },
             Value::QuotedList(h) => {
-                let mut cell = Cell::nil().quote();
+                let mut cell = Cell::nil();
                 for item in h.clone().into_iter() {
                     cell.add(&Cell::new(item));
                 }
-                dbg!(&cell);
-                cell
+                cell.quote()
             },
             _ => Cell::new(self.clone()),
         }
@@ -615,11 +614,8 @@ impl<'c> IntoIterator for Value<'c> {
     fn into_iter(self) -> Self::IntoIter {
         ValueIterator::new(
             &match self {
-                Value::List(ref cell) | Value::QuotedList(ref cell) =>
-                    cell.clone(),
-                Value::EmptyList | Value::EmptyQuotedList => {
-                    Cell::nil()
-                },
+                Value::List(ref cell) | Value::QuotedList(ref cell) => cell.clone(),
+                Value::EmptyList | Value::EmptyQuotedList => Cell::nil(),
                 ref value => Cell::from(value.clone()),
             },
             self.is_quoted(),
@@ -631,7 +627,7 @@ impl<'c> FromIterator<Value<'c>> for Value<'c> {
     fn from_iter<I: IntoIterator<Item = Value<'c>>>(iter: I) -> Value<'c> {
         let mut cell = Cell::nil();
         for value in iter {
-            cell.add(&Cell::from(value));
+            cell.push_value(value);
         }
         Value::list(cell)
     }
@@ -640,32 +636,32 @@ impl<'c> Extend<Value<'c>> for Value<'c> {
     fn extend<T: IntoIterator<Item = Value<'c>>>(&mut self, iter: T) {
         if let Value::List(ref mut cell) = self {
             for value in iter {
-                cell.add(&Cell::from(value));
+                cell.push_value(value);
             }
         } else if let Value::QuotedList(ref mut cell) = self {
             for value in iter {
-                cell.add(&Cell::from(value));
+                cell.push_value(value);
             }
         } else {
             match self.clone() {
                 Value::EmptyList => {
                     let mut cell = Cell::nil();
                     for value in iter {
-                        cell.add(&Cell::from(value))
+                        cell.push_value(value)
                     }
                     *self = Value::List(cell)
                 },
                 Value::EmptyQuotedList => {
                     let mut cell = Cell::nil();
                     for value in iter {
-                        cell.add(&Cell::from(value))
+                        cell.push_value(value)
                     }
                     *self = Value::QuotedList(cell)
                 },
                 value => {
                     let mut cell = Cell::nil();
                     for value in iter {
-                        cell.add(&Cell::from(value))
+                        cell.push_value(value)
                     }
                     *self = Value::List(cell)
                 },
@@ -679,7 +675,7 @@ impl<'c> Extend<Value<'c>> for Value<'c> {
 //         let mut cell = Cell::nil();
 //         for cell in iter {
 //             for value in cell {
-//                 cell.add(&Cell::from(value));
+//                 cell.push_value(value);
 //             }
 //         }
 //         Value::list(cell)

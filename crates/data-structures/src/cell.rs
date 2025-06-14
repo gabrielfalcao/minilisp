@@ -1,13 +1,14 @@
 #![allow(unused)]
 use std::borrow::Cow;
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::iter::{Extend, IntoIterator, Iterator};
 use std::ops::Deref;
-use std::fmt::Debug;
+
 use unique_pointer::{RefCounter, UniquePointer};
 
 use crate::{AsSymbol, AsValue, Quotable, Symbol, Value};
-pub trait ListIterator<'c, T: AsCell<'c>>: IntoIterator<Item = T> + Debug {
+pub trait ListIterator<'c, T: AsCell<'c>>: IntoIterator<Item = T> + Debug + Quotable {
     fn iter_cells(&self) -> Cell<'c>;
 }
 
@@ -61,7 +62,9 @@ impl<'c> Cell<'c> {
     }
 
     pub fn new<T: AsValue<'c>>(item: T) -> Cell<'c> {
-        Cell::quoted(Some(item), false)
+        let value = item.as_value();
+        let is_quoted = value.is_quoted();
+        Cell::quoted(Some(value), is_quoted)
         // let mut cell = Cell::nil();
         // cell.write(item.as_value());
         // cell
@@ -72,8 +75,16 @@ impl<'c> Cell<'c> {
     }
 
     pub fn push_value(&mut self, value: Value<'c>) {
-        self.add(&Cell::new(value));
+        let is_quoted = value.is_quoted();
+        let mut cell = Cell::new(value);
+        let cell = if is_quoted {
+            cell.quote()
+        } else {
+            cell
+        };
+        self.add(&cell);
     }
+
     pub fn add(&mut self, new: &Cell<'c>) {
         if new.is_nil() {
             return;
@@ -235,19 +246,14 @@ impl<'c> Cell<'c> {
                         if self.head.is_null() {
                             format!("head: {}", "null")
                         } else {
-                            format!(
-                                "head={:#?}",
-                                self.head().unwrap_or_default()
-                            )
+                            format!("head={:#?}", self.head().unwrap_or_default())
                         },
                         if self.tail.is_null() {
                             format!("tail: {}", "null")
                         } else {
                             format!(
                                 "tail={:#?}",
-                                self.tail()
-                                    .map(Clone::clone)
-                                    .unwrap_or_default()
+                                self.tail().map(Clone::clone).unwrap_or_default()
                             )
                         },
                     ]
@@ -495,7 +501,15 @@ impl<'c> AsValue<'c> for Cell<'c> {
     fn as_value(&self) -> Value<'c> {
         if self.tail.is_null() {
             match self.head() {
-                Some(head) => head.unwrap_list(),
+                Some(head) => {
+                    let is_quoted = head.is_quoted();
+                    let value  = head.unwrap_list();
+                    if is_quoted {
+                        value.quote()
+                    } else {
+                        value
+                    }
+                },
                 None => Value::Nil,
             }
         } else if self.quoted {
@@ -557,7 +571,7 @@ impl<'c> FromIterator<Value<'c>> for Cell<'c> {
     fn from_iter<I: IntoIterator<Item = Value<'c>>>(iter: I) -> Cell<'c> {
         let mut cell = Cell::nil();
         for value in iter {
-            cell.add(&Cell::from(value));
+            cell.push_value(value);
         }
         cell
     }
@@ -566,32 +580,32 @@ impl<'c> FromIterator<Value<'c>> for Cell<'c> {
 //     fn extend<T: IntoIterator<Item = Value<'c>>>(&mut self, iter: T) {
 //         if let Value::List(ref mut cell) = self {
 //             for value in iter {
-//                 cell.add(&Cell::from(value));
+//                 cell.push_value(value);
 //             }
 //         } else if let Value::QuotedList(ref mut cell) = self {
 //             for value in iter {
-//                 cell.add(&Cell::from(value));
+//                 cell.push_value(value);
 //             }
 //         } else {
 //             match self.clone() {
 //                 Value::EmptyList => {
 //                     let mut cell = Cell::nil();
 //                     for value in iter {
-//                         cell.add(&Cell::from(value))
+//                         cell.push_value(value)
 //                     }
 //                     *self = Value::List(cell)
 //                 },
 //                 Value::EmptyQuotedList => {
 //                     let mut cell = Cell::nil();
 //                     for value in iter {
-//                         cell.add(&Cell::from(value))
+//                         cell.push_value(value)
 //                     }
 //                     *self = Value::QuotedList(cell)
 //                 },
 //                 value => {
 //                     let mut cell = Cell::nil();
 //                     for value in iter {
-//                         cell.add(&Cell::from(value))
+//                         cell.push_value(value)
 //                     }
 //                     *self = Value::List(cell)
 //                 },
