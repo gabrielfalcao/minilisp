@@ -13,7 +13,7 @@ pub mod float;
 pub use float::{AsFloat, Float};
 pub mod unsigned_integer;
 pub use unsigned_integer::{AsUnsignedInteger, UnsignedInteger};
-
+use minilisp_util::dbg;
 use crate::{
     AsCell, AsNumber, AsSymbol, Cell, ListIterator, Quotable, Symbol,
 };
@@ -84,14 +84,14 @@ impl<'c> Value<'c> {
 
     pub fn list<T: AsCell<'c>>(item: T) -> Value<'c> {
         if item.is_quoted() {
-            Value::QuotedList(item.as_cell())
+            Value::QuotedList(item.as_cell().quote())
         } else {
-            Value::List(item.as_cell())
+            Value::List(item.as_cell().unquote())
         }
     }
 
     pub fn quoted_list<T: AsCell<'c>>(item: T) -> Value<'c> {
-        Value::QuotedList(item.as_cell())
+        Value::QuotedList(item.as_cell().quote())
     }
 
     pub fn is_nil(&self) -> bool {
@@ -617,6 +617,9 @@ impl<'c> IntoIterator for Value<'c> {
             &match self {
                 Value::List(ref cell) | Value::QuotedList(ref cell) =>
                     cell.clone(),
+                Value::EmptyList | Value::EmptyQuotedList => {
+                    Cell::nil()
+                },
                 ref value => Cell::from(value.clone()),
             },
             self.is_quoted(),

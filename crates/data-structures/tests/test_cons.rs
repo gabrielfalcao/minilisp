@@ -1,6 +1,6 @@
 #![allow(unused)]
 use k9::assert_equal;
-use minilisp_data_structures::{append, car, cdr, cons, list, Cell, Value};
+use minilisp_data_structures::{append, car, cdr, cons, list, Cell, Value, assert_display_equal, assert_debug_equal};
 
 #[test]
 fn test_cons() {
@@ -16,20 +16,15 @@ fn test_cons() {
 
 #[test]
 fn test_list() {
-    let cell = list([
-        Value::from("head"),
-        Value::from("middle"),
+    let value = list([
+        Value::symbol("head"),
+        Value::symbol("middle"),
         Value::from(33u8),
         Value::from("tail"),
     ]);
-    assert_equal!(
-        cell.values(),
-        vec![
-            Value::from("head"),
-            Value::from("middle"),
-            Value::Byte(33),
-            Value::from("tail"),
-        ]
+    assert_display_equal!(
+        value,
+        r#"(head middle 0x21 "tail")"#
     );
 }
 

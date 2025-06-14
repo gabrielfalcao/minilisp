@@ -57,6 +57,7 @@ pub fn car<'c>(
     mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
+    dbg!(&list);
     Ok(ds::car(&list))
 }
 
@@ -64,5 +65,6 @@ pub fn cdr<'c>(
     mut vm: UniquePointer<VirtualMachine<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
+    dbg!(&list);
     Ok(ds::cdr(&list))
 }

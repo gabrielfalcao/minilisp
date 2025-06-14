@@ -11,12 +11,18 @@ macro_rules! location {
         location
     }};
     (begin) => {
-        $crate::tag!(minilisp_util::color::fg(format!("in function {}", $crate::location!()), 178))
+        $crate::tag!(minilisp_util::color::fg(
+            format!("in function {}", $crate::location!()),
+            178
+        ))
     };
     (end) => {
         $crate::tag!(
             close,
-            minilisp_util::color::fg(format!("from function {}", $crate::location!()), 178)
+            minilisp_util::color::fg(
+                format!("from function {}", $crate::location!()),
+                178
+            )
         )
     };
     (unexpected) => {
@@ -37,7 +43,8 @@ macro_rules! filename {
             .map(String::from)
             .collect::<Vec<String>>();
         let (folder, filename) = if parts.len() > 1 {
-            let last = minilisp_util::color::fg(parts.remove(parts.len() - 1), $file_color);
+            let last =
+                minilisp_util::color::fg(parts.remove(parts.len() - 1), $file_color);
             let mut parts = parts
                 .iter()
                 .map(|part| minilisp_util::color::fg(part, $folder_color))
@@ -99,8 +106,7 @@ macro_rules! dbg {
 #[macro_export]
 macro_rules! indent_objdump {
     ($indentation:literal, $obj:expr) => {{
-        minilisp_formatter::highlight_code_string(format!("{:#?}", $obj))
-            .expect(format!("highlight code in {}:{}", file!(), line!()).as_str())
+        format!("{:#?}", $obj)
             .lines()
             .map(|line| format!("{}{}", " ".repeat($indentation), line))
             .collect::<Vec<String>>()
@@ -143,7 +149,11 @@ macro_rules! unexpected {
 #[macro_export]
 macro_rules! caller {
     () => {
-        $crate::Caller($crate::function_name!().to_string(), file!().to_string(), line!())
+        $crate::Caller(
+            $crate::function_name!().to_string(),
+            file!().to_string(),
+            line!(),
+        )
     };
 }
 
@@ -223,11 +233,17 @@ macro_rules! impl_error {
             }
 
             fn previous_as_debug(&self) -> String {
-                self.previous.clone().map(|error| format!("{:#?}", error)).unwrap_or_default()
+                self.previous
+                    .clone()
+                    .map(|error| format!("{:#?}", error))
+                    .unwrap_or_default()
             }
 
             fn previous_as_string(&self) -> String {
-                self.previous.clone().map(|error| format!("{}", error)).unwrap_or_default()
+                self.previous
+                    .clone()
+                    .map(|error| format!("{}", error))
+                    .unwrap_or_default()
             }
         }
         impl std::fmt::Display for Error {
@@ -250,12 +266,15 @@ macro_rules! impl_error {
                     if self.callers.len() > 0 {
                         format!(
                             "\n\nStacktrace:\n{}\n",
-                            [self.previous_as_debug(), self.callers_to_string(4)]
-                                .iter()
-                                .filter(|s| !s.trim().is_empty())
-                                .map(String::from)
-                                .collect::<Vec<String>>()
-                                .join("\n")
+                            [
+                                self.previous_as_debug(),
+                                self.callers_to_string(4)
+                            ]
+                            .iter()
+                            .filter(|s| !s.trim().is_empty())
+                            .map(String::from)
+                            .collect::<Vec<String>>()
+                            .join("\n")
                         )
                     } else {
                         String::new()
@@ -274,7 +293,9 @@ macro_rules! impl_error {
         macro_rules! map_call_to_result {
             ($result: expr) => {
                 use minilisp_util::Traceback;
-                $result.map_err(|error| minilisp_util::with_caller!(crate::Error::from(error)))
+                $result.map_err(|error| {
+                    minilisp_util::with_caller!(crate::Error::from(error))
+                })
             };
         }
     };
@@ -286,7 +307,6 @@ macro_rules! format_to_str {
         std::borrow::Cow::from(format!($text, $($arg,)*).as_str())
     };
 }
-
 
 #[macro_export]
 macro_rules! vec_deque {

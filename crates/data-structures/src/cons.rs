@@ -1,6 +1,6 @@
 #![allow(unused)]
 use crate::{AsCell, AsValue, Cell, ListIterator, Quotable, Symbol, Value};
-
+use minilisp_util::dbg;
 pub fn cons<'c, T: AsCell<'c>>(head: T, tail: &mut Cell<'c>) -> Cell<'c> {
     let mut head = head.as_cell();
     head.add(tail);
@@ -47,8 +47,9 @@ pub fn cdr<'c>(item: &Value<'c>) -> Value<'c> {
 }
 pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
     let mut cell = Cell::nil();
+    // dbg!(&list);
     for item in list.into_iter() {
-        cell.add(&Cell::from(item));
+        cell.push_value(item);
     }
     Value::List(cell)
 }

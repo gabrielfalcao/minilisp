@@ -2,7 +2,7 @@
 
 a toy lisp written in rust with pest
 
-[![asciicast](https://asciinema.org/a/8rMqdI9R2ieureaHDZrFC9JtO.svg)](https://asciinema.org/a/8rMqdI9R2ieureaHDZrFC9JtO)
+[![asciicast](https://asciinema.org/a/gYyuAsegU1qwl0XiTHcBvqJxR.svg)](https://asciinema.org/a/gYyuAsegU1qwl0XiTHcBvqJxR)
 
 ## Try the REPL
 

@@ -39,3 +39,8 @@ k9 = { workspace = true }
 [[test]]
 name = "test_parse"
 path = "./tests/test_parse.rs"
+
+
+[[test]]
+name = "test_sexprs"
+path = "./tests/test_sexprs.rs"

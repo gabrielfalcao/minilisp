@@ -1,3 +1,4 @@
+#![allow(unused)]
 use minilisp_formatter::highlight;
 use minilisp_parser::parse_source;
 use minilisp_repl::{Result, VirtualMachinePrompt};
@@ -47,8 +48,8 @@ fn repl<'a>() -> Result<()> {
         .build();
 
     let mut vm = VirtualMachine::new();
-    let mut vmp = VirtualMachinePrompt::new(&vm);
-    let mut history =
+    let vmp = VirtualMachinePrompt::new(&vm);
+    let history =
         rustyline::history::FileHistory::with_config(config.clone());
     let mut rl = Editor::<VirtualMachinePrompt, FileHistory>::with_history(
         config, history,

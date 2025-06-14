@@ -1,4 +1,7 @@
-#![allow(unused, mutable_transmutes)]
+#![allow(
+    unused,
+    mutable_transmutes
+)]
 #![feature(trait_alias)]
 use std::borrow::Cow;
 
@@ -12,6 +15,7 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
 pub mod helpers;
+pub mod test;
 pub use helpers::runtime_error;
 use minilisp_data_structures::{
     append, car, cdr, list, AsSymbol, AsValue, Cell, Symbol, Value,
@@ -20,10 +24,8 @@ use minilisp_parser::parse_source;
 use minilisp_util::{dbg, format_to_str, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
-pub type BuiltinFunction = for<'c> fn(
-    UniquePointer<VirtualMachine<'c>>,
-    Value<'c>,
-) -> Result<Value<'c>>;
+pub type BuiltinFunction =
+    for<'c> fn(UniquePointer<VirtualMachine<'c>>, Value<'c>) -> Result<Value<'c>>;
 
 #[derive(Clone)]
 pub enum Sym<'c> {
@@ -149,19 +151,11 @@ impl<'c> VirtualMachine<'c> {
     pub fn get_symbol_function(
         &mut self,
         sym: &str,
-    ) -> Result<BuiltinFunction> {
+    ) -> Result<Option<BuiltinFunction>> {
         let symbol = try_result!(self.get_symbol(sym)).clone();
         match symbol {
-            Sym::Value(item) => Err(with_caller!(runtime_error(
-                format!("symbol {:#?} is not a function: {:#?}", sym, item),
-                None
-            ))),
-            Sym::Value(value) => Err(with_caller!(runtime_error(
-                format!("symbol {:#?} is not a function: {:#?}", sym, value),
-                None
-            ))),
-
-            Sym::BuiltinFunction(_sym, function) => Ok(function),
+            Sym::Value(item) => Ok(None),
+            Sym::BuiltinFunction(_sym, function) => Ok(Some(function)),
             Sym::Function(name, args, body) => {
                 dbg!(&name, &args, &body);
                 Err(with_caller!(runtime_error(
@@ -196,14 +190,25 @@ impl<'c> VirtualMachine<'c> {
         sym: &Symbol<'c>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
-        let mut function = try_result!(self.get_symbol_function(sym.symbol()));
-        let result = function(UniquePointer::read_only(self), list);
-        match result {
-            Ok(item) => Ok(self.eval(item)?),
-            Err(error) => Err(runtime_error(
-                format!("Failed to evaluate function {:#?}: {}", sym, error),
-                Some(with_caller!(error)),
-            )),
+        match try_result!(self.get_symbol_function(sym.symbol())) {
+            Some(function) => {
+                let result = function(UniquePointer::read_only(self), list);
+                match result {
+                    Ok(item) => Ok(self.eval(item)?),
+                    Err(error) => Err(runtime_error(
+                        format!("Failed to evaluate function {:#?}: {}", sym, error),
+                        Some(with_caller!(error)),
+                    )),
+                }
+            },
+            None => Ok(Value::from({
+                let mut cell = Cell::nil();
+                cell.add(&Cell::from(Value::from(sym)));
+                for item in list.into_iter() {
+                    cell.add(&Cell::from(item));
+                }
+                cell
+            })),
         }
     }
 
@@ -214,9 +219,8 @@ impl<'c> VirtualMachine<'c> {
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
         match &item {
             Value::QuotedList(_) | Value::List(_) => match car(&item) {
-                Value::Symbol(ref symbol) => Ok(try_result!(
-                    self.eval_symbol_function(symbol, cdr(&item))
-                )),
+                Value::Symbol(ref symbol) =>
+                    Ok(try_result!(self.eval_symbol_function(symbol, cdr(&item)))),
                 _ => Ok(item.quote()),
             },
             Value::Symbol(symbol) | Value::QuotedSymbol(symbol) =>
@@ -225,11 +229,7 @@ impl<'c> VirtualMachine<'c> {
         }
     }
 
-    pub fn setq(
-        &mut self,
-        sym: Symbol<'c>,
-        item: Value<'c>,
-    ) -> Result<Value<'c>> {
+    pub fn setq(&mut self, sym: Symbol<'c>, item: Value<'c>) -> Result<Value<'c>> {
         //("setq", &item);
         let symbol_value = Sym::Value(self.eval(item.clone())?);
         let previous = self
@@ -259,13 +259,12 @@ impl<'c> VirtualMachine<'c> {
                     Ok(try_result!(self.eval_symbol_function(sym, cdr(&list))))
                 },
                 Value::List(_) => {
-                    let mut value = Value::empty_list();
-                    for result in
-                        list.into_iter().map(|value| self.eval(value))
-                    {
-                        value.extend([try_result!(result)]);
-                    }
-                    Ok(value)
+                    Ok(list.clone())
+                    // let mut value = Value::empty_list();
+                    // for result in list.into_iter().map(|value| self.eval(value)) {
+                    //     value.extend([try_result!(result)]);
+                    // }
+                    // Ok(value)
                 },
                 value => {
                     unexpected!(value)
@@ -289,13 +288,14 @@ impl<'c> VirtualMachine<'c> {
     }
 
     pub fn eval_symbol(&mut self, sym: &str) -> Result<Value<'c>> {
-        let symbol = try_result!(unsafe {
-            std::mem::transmute::<
-                &&mut VirtualMachine<'c>,
-                &mut &mut VirtualMachine<'c>,
-            >(&self)
-        }
-        .get_symbol(sym));
+        let symbol =
+            try_result!(unsafe {
+                std::mem::transmute::<
+                    &&mut VirtualMachine<'c>,
+                    &mut &mut VirtualMachine<'c>,
+                >(&self)
+            }
+            .get_symbol(sym));
         //(&sym, &symbol);
         match symbol {
             Sym::Value(value) => Ok(value.clone()),

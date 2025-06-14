@@ -2,6 +2,31 @@ use std::borrow::Cow;
 
 use crate::{Source, Span, SpanPosition};
 
+#[macro_export]
+macro_rules! assert_parsed_display {
+    ($code:literal) => {{
+        use minilisp_parser::parse_source;
+
+        let value = match parse_source($code) {
+            Ok(value) => value,
+            Err(error) => {
+                eprintln!(
+                    "{}",
+                    [
+                        format!("when parsing:"),
+                        $code.to_string(),
+                        format!("error: {}", error)
+                    ]
+                    .join("\n")
+                );
+                std::process::exit(101);
+            },
+        };
+        let code = value.to_string();
+        k9::assert_equal!(code, $code);
+    }};
+}
+
 pub fn stub_span_info<'a>(
     input: &'a str,
     start_pos: (usize, usize),

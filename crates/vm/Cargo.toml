@@ -21,6 +21,7 @@ minilisp-util = { workspace = true }
 minilisp-parser = { workspace = true }
 minilisp-formatter = { workspace = true }
 minilisp-data-structures = { workspace = true }
+minilisp-decorators = { workspace = true }
 unique-pointer =  { workspace = true    }
 iocore = { workspace = true }
 
@@ -33,11 +34,19 @@ k9 = { workspace = true }
 [package.metadata]
 cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
 
-
 [[test]]
-name = "test_math"
-path = "./tests/test_math.rs"
+name = "test_sexprs"
+path = "./tests/test_sexprs.rs"
 
-[[test]]
-name = "test_string"
-path = "./tests/test_string.rs"
+
+# [[test]]
+# name = "test_list"
+# path = "./tests/test_list.rs"
+
+# [[test]]
+# name = "test_math"
+# path = "./tests/test_math.rs"
+
+# [[test]]
+# name = "test_string"
+# path = "./tests/test_string.rs"

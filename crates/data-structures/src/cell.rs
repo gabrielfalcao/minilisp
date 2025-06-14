@@ -3,11 +3,11 @@ use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::iter::{Extend, IntoIterator, Iterator};
 use std::ops::Deref;
-
+use std::fmt::Debug;
 use unique_pointer::{RefCounter, UniquePointer};
 
 use crate::{AsSymbol, AsValue, Quotable, Symbol, Value};
-pub trait ListIterator<'c, T: AsCell<'c>>: IntoIterator<Item = T> {
+pub trait ListIterator<'c, T: AsCell<'c>>: IntoIterator<Item = T> + Debug {
     fn iter_cells(&self) -> Cell<'c>;
 }
 
@@ -71,6 +71,9 @@ impl<'c> Cell<'c> {
         self.head.try_read()
     }
 
+    pub fn push_value(&mut self, value: Value<'c>) {
+        self.add(&Cell::new(value));
+    }
     pub fn add(&mut self, new: &Cell<'c>) {
         if new.is_nil() {
             return;
@@ -478,11 +481,9 @@ impl std::fmt::Display for Cell<'_> {
                 }
 
                 if self.tail.is_not_null() {
-                    parts.push(
-                        self.tail()
-                            .map(|cell| cell.to_string())
-                            .unwrap_or_default(),
-                    )
+                    if let Some(tail) = self.tail() {
+                        parts.push(tail.to_string());
+                    }
                 }
                 parts.join(" ").trim().to_string()
             }
