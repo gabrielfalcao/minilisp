@@ -54,6 +54,12 @@ pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
         ),
         Rule::string => Value::string(Cow::from(pair.as_span().as_str())),
         Rule::symbol => Value::symbol(Cow::from(pair.as_span().as_str())),
+        Rule::quoted_symbol => {
+            let mut pairs = pair.clone().into_inner();
+            pairs.next().expect("quote");
+            let symbol = pairs.next().expect("symbol");
+            Value::quoted_symbol(symbol.as_span().as_str())
+        }
         Rule::t => Value::T,
         Rule::unsigned => Value::unsigned_integer(
             u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
