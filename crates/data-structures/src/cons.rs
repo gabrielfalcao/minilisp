@@ -8,20 +8,25 @@ pub fn cons<'c, T: AsCell<'c>>(head: T, tail: &mut Cell<'c>) -> Cell<'c> {
     head
 }
 pub fn append<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
+    let is_quoted = list.is_quoted();
     let mut items = Cell::nil();
     for value in list {
         match &value {
             Value::List(h) | Value::QuotedList(h) =>
                 for item in h.clone().into_iter() {
-                    items.add(&Cell::from(item));
+                    items.push_value(item.clone());
                 },
             Value::EmptyList | Value::EmptyQuotedList | Value::Nil => {},
-            value => {
-                items.add(&Cell::from(value));
+            _ => {
+                items.push_value(value);
             },
         }
     }
-    Value::list(items)
+    if is_quoted {
+        Value::quoted_list(items)
+    } else {
+        Value::list(items)
+    }
 }
 pub fn makelist<'c>(value: Value<'c>, count: usize) -> Value<'c> {
     (0..count).map(|_| value.clone()).collect()
@@ -47,10 +52,10 @@ pub fn cdr<'c>(item: &Value<'c>) -> Value<'c> {
     }
 }
 pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
-    dbg!(&list);
+    // dbg!(&list);
     let mut cell = Cell::nil();
     for item in list.into_iter() {
-        dbg!(&item);
+        // dbg!(&item);
         cell.push_value(item);
     }
     Value::List(cell)

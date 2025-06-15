@@ -104,6 +104,7 @@ impl<'c> VirtualMachine<'c> {
         vm.register_builtin_function("cdr", builtin::list::cdr);
         vm.register_builtin_function("cons", builtin::list::cons);
         vm.register_builtin_function("list", builtin::list::list);
+        vm.register_builtin_function("append", builtin::list::append);
         vm.register_builtin_function("quote", builtin::list::quote);
         vm.register_builtin_function("print", builtin::string::print);
         vm.register_builtin_function("backquote", builtin::list::backquote);
