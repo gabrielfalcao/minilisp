@@ -61,7 +61,7 @@ impl<'c> Sym<'c> {
                 Value::quoted_list([
                     Value::from(name),
                     args.clone(),
-                    body.clone(),
+                    append(body.clone()),
                 ])
             },
         }
@@ -308,7 +308,7 @@ impl<'c> VirtualMachine<'c> {
                     &mut &mut VirtualMachine<'c>,
                 >(&self)
             }
-            .eval_defun(name.clone(), args.clone(), body.clone()))),
+            .eval_defun(name.clone(), args.clone(), append(body.clone())))),
         }
     }
 }
