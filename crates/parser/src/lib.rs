@@ -30,14 +30,16 @@ pub fn parse_source<'a>(input: &'a str) -> Result<'a, Value<'a>> {
         )
     })?;
     let file = pairs.next().unwrap();
-    let nodes = pair_to_value(
-        file.into_inner()
-            .next()
-            .expect("statement")
-            .into_inner()
-            .next()
-            .expect("item"),
-    );
+    let nodes = (|pair: Pair<'a, Rule>| -> Option<Value<'a>> {
+        Some(pair_to_value(
+            pair.clone()
+                .into_inner()
+                .next()?
+                .into_inner()
+                .next()?,
+        ))
+    })(file)
+    .unwrap_or_default();
     Ok(nodes)
 }
 
@@ -46,12 +48,10 @@ pub fn map_pairs_to_list<'a>(pairs: Pairs<'a, Rule>) -> Value<'a> {
 }
 pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
     match pair.as_rule() {
-        Rule::float => Value::float(
-            f64::from_str(pair.as_span().as_str()).expect("float"),
-        ),
-        Rule::integer => Value::integer(
-            i64::from_str(pair.as_span().as_str()).expect("integer"),
-        ),
+        Rule::float =>
+            Value::float(f64::from_str(pair.as_span().as_str()).expect("float")),
+        Rule::integer =>
+            Value::integer(i64::from_str(pair.as_span().as_str()).expect("integer")),
         Rule::string => Value::string(Cow::from(pair.as_span().as_str())),
         Rule::symbol => Value::symbol(Cow::from(pair.as_span().as_str())),
         Rule::quoted_symbol => {
@@ -59,13 +59,12 @@ pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
             pairs.next().expect("quote");
             let symbol = pairs.next().expect("symbol");
             Value::quoted_symbol(symbol.as_span().as_str())
-        }
+        },
         Rule::t => Value::T,
         Rule::unsigned => Value::unsigned_integer(
             u32::from_str(pair.as_span().as_str()).expect("unsigned integer"),
         ),
-        Rule::value =>
-            pair_to_value(pair.clone().into_inner().next().expect("value")),
+        Rule::value => pair_to_value(pair.clone().into_inner().next().expect("value")),
         Rule::sexpr => {
             let mut items = Cell::nil();
             let mut pairs = pair.clone().into_inner();
