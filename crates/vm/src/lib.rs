@@ -129,13 +129,11 @@ impl<'c> Sym<'c> {
         match self {
             Sym::Value(value) => value.clone(),
             Sym::Function(Function::Builtin { name, function }) => Value::symbol(name),
-            Sym::Function(Function::Defun { name, args, body }) => {
-                Value::list([
-                    Value::from(name),
-                    args.clone(),
-                    append(body.clone()),
-                ])
-            },
+            Sym::Function(Function::Defun { name, args, body }) => Value::list([
+                Value::from(name),
+                args.clone(),
+                append(body.clone()),
+            ]),
         }
     }
 }
@@ -254,6 +252,7 @@ impl<'c> VirtualMachine<'c> {
 
         match try_result!(self.get_symbol_function(sym.symbol())) {
             Some(function) => {
+                dbg!(&sym, &list);
                 let result = function.call(vm, cdr(&list));
                 match result {
                     Ok(item) => Ok(self.eval(item)?),
@@ -265,9 +264,10 @@ impl<'c> VirtualMachine<'c> {
             },
             None => Ok(Value::from({
                 let mut cell = Cell::nil();
-                cell.add(&Cell::from(Value::from(sym)));
+                cell.push_value(Value::from(sym));
+                dbg!(&sym, &list);
                 for item in list.into_iter() {
-                    cell.add(&Cell::from(item));
+                    cell.push_value(item);
                 }
                 cell
             })),
@@ -281,8 +281,10 @@ impl<'c> VirtualMachine<'c> {
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
         match &item {
             Value::List(_) | Value::QuotedList(_) => match car(&item) {
-                Value::Symbol(ref symbol) =>
-                    Ok(try_result!(self.eval_symbol(symbol, cdr(&item)))),
+                Value::Symbol(ref symbol) | Value::QuotedSymbol(ref symbol) => {
+                    // dbg!(&symbol, &item);
+                    Ok(try_result!(self.eval_symbol(symbol, cdr(&item))))
+                },
                 _ => Ok(item.quote()),
             },
             Value::Symbol(symbol) | Value::QuotedSymbol(symbol) =>
@@ -343,20 +345,6 @@ impl<'c> VirtualMachine<'c> {
         }
     }
 
-    pub fn eval_defun(
-        &mut self,
-        sym: Symbol<'c>,
-        args: Value<'c>,
-        body: Value<'c>,
-    ) -> Result<Value<'c>> {
-        dbg!(&sym, &args, &body);
-        Ok(Value::quoted_list([
-            Value::from(sym),
-            Value::quoted_list([Value::symbol("args"), args]),
-            Value::quoted_list([Value::symbol("body"), body]),
-        ]))
-    }
-
     pub fn eval_symbol(
         &mut self,
         sym: &Symbol<'c>,
@@ -367,7 +355,10 @@ impl<'c> VirtualMachine<'c> {
         //(&sym, &symbol);
         match symbol {
             Sym::Value(value) => Ok(value.clone()),
-            Sym::Function(function) => Ok(try_result!(function.call(vm, args))),
+            Sym::Function(function) => {
+                //
+                Ok(try_result!(function.call(vm, args)))
+            },
         }
     }
 }

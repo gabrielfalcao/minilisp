@@ -9,7 +9,11 @@ fn test_eval_defun() -> Result<()> {
     let mut vm = VirtualMachine::new();
     vm.eval_string(r#"(defun sum(a b) (+ a b))"#)?;
     // dbg!(&vm);
-    let val = vm.eval_string(r#"(sum 1 1)"#)?;
-    assert_equal!(val, Value::unsigned_integer(2u64));
+    // let val = vm.eval_string(r#"(sum 1 1)"#)?;
+    // assert_equal!(val, Value::unsigned_integer(2u64));
+    // let val = vm.eval_string(r#"(sum 40 (+ 1 1))"#)?;
+    // assert_equal!(val, Value::unsigned_integer(42u64));
+    let val = vm.eval_string(r#"(sum 40 (sum 1 1))"#)?;
+    assert_equal!(val, Value::unsigned_integer(42u64));
     Ok(())
 }

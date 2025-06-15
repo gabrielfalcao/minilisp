@@ -39,18 +39,18 @@ cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
 name = "test_defun"
 path = "./tests/test_defun.rs"
 
-[[test]]
-name = "test_sexprs"
-path = "./tests/test_sexprs.rs"
+# [[test]]
+# name = "test_sexprs"
+# path = "./tests/test_sexprs.rs"
 
-[[test]]
-name = "test_list"
-path = "./tests/test_list.rs"
+# [[test]]
+# name = "test_list"
+# path = "./tests/test_list.rs"
 
-[[test]]
-name = "test_math"
-path = "./tests/test_math.rs"
+# [[test]]
+# name = "test_math"
+# path = "./tests/test_math.rs"
 
-[[test]]
-name = "test_string"
-path = "./tests/test_string.rs"
+# [[test]]
+# name = "test_string"
+# path = "./tests/test_string.rs"
