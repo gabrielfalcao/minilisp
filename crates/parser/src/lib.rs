@@ -66,7 +66,6 @@ pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
         ),
         Rule::value =>
             pair_to_value(pair.clone().into_inner().next().expect("value")),
-        Rule::item => pair_to_value(pair.clone().into_inner().next().expect("item")),
         Rule::sexpr => {
             let mut items = Cell::nil();
             let mut pairs = pair.clone().into_inner();
@@ -83,12 +82,10 @@ pub fn pair_to_value<'a>(pair: Pair<'a, Rule>) -> Value<'a> {
                         quoted = true;
                     },
                     Rule::open_paren => continue,
-                    Rule::value | Rule::symbol | Rule::item => {
-                        items.add(&Cell::from(pair_to_value(pair)));
-                        continue;
-                    },
+                    Rule::close_paren => continue,
                     _ => {
-                        unexpected!(pair);
+                        items.push_value(pair_to_value(pair));
+                        continue;
                     },
                 }
             }

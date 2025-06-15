@@ -17,15 +17,14 @@ close_paren                 = @{ ")" }
 
 nonsymbol                   = { open_paren | quote | backquote | comma | close_paren | double_quote | WHITESPACE }
 
-statement                   = { item+ }
-item                        = { (value | symbol | quoted_symbol) | sexpr}
+statement                   = { sexpr+ }
 
 value                       = { (t | nil | float | unsigned | integer | double_quoted_string) }
 symbol                      = @{ ((!(nonsymbol | integer) ~ ANY)+) }
 quoted_symbol               = ${ quote ~ symbol }
 
-defun                       = { open_paren ~ "defun" ~ symbol_sexpr ~ item* }
-sexpr                       = { quote? ~ open_paren ~ item* ~ close_paren }
+defun                       = { open_paren ~ "defun" ~ symbol_sexpr ~ sexpr* }
+sexpr                       = { quote? ~ open_paren ~ (value | symbol | quoted_symbol | sexpr)* ~ close_paren }
 symbol_sexpr                = { open_paren ~ symbol* ~ close_paren }
 
 delimiter                   = _{ NEWLINE+ }
