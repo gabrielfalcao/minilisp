@@ -23,3 +23,23 @@ fn test_eval_defun_recursive() -> Result<()> {
     assert_equal!(val, Value::unsigned_integer(42u64));
     Ok(())
 }
+
+// #[test]
+// fn test_eval_defun_recursive_flatten() -> Result<()> {
+//     let mut vm = VirtualMachine::new();
+//     vm.eval_string(r#"
+// (defun flatten (lst)
+//   (if (null lst)
+//       nil
+//     (if (listp (car lst))
+//         (append
+//          (flatten (car lst))
+//          (flatten (cdr lst)))
+//       (cons (car lst) (flatten (cdr lst))))))
+// "#)?;
+//     let value = vm.eval_string(r#"(flatten '( '(a '( b)) '( c d)))"#)?;
+//     assert_equal!(value.to_string(), "'( 'a 'b 'c 'd )");
+//
+//     let value = vm.eval_string(r#"(flatten '( a '( '( b ) c)))"#)?;
+//     assert_equal!(value.to_string(), "'( 'a 'b 'c )");
+// }
