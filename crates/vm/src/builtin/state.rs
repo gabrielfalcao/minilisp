@@ -6,7 +6,7 @@ use minilisp_data_structures::{
 use unique_pointer::UniquePointer;
 
 use crate::helpers::runtime_error;
-use crate::{Result, Context};
+use crate::{Result, Context, Sym};
 
 pub fn setq<'c>(
     mut vm: UniquePointer<Context<'c>>,
@@ -30,7 +30,7 @@ pub fn setq<'c>(
             None,
         ));
     }
-    Ok(vm.setq(head.as_symbol(), cdr(&list))?)
+    Ok(vm.set_global(&head.as_symbol(), &Sym::Value(cdr(&list)))?)
 }
 
 

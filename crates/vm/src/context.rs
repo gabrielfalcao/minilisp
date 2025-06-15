@@ -1,20 +1,20 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Debug;
 
-use minilisp_data_structures::{car, cdr, AsValue, Cell, Symbol, Value};
+use minilisp_data_structures::{car, cdr, AsValue, Cell, Quotable, Symbol, Value};
 use minilisp_parser::parse_source;
 use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
 use crate::{
-    builtin, runtime_error, warn, BuiltinFunction, Function, Result, Sym,
+    builtin, runtime_error, warn, BuiltinFunction, Function, Result, Sym, SymbolTable,
     VirtualMachine,
 };
 
 #[derive(Clone)]
 pub struct Context<'c> {
-    symbols: BTreeMap<Symbol<'c>, Sym<'c>>,
-    vm: UniquePointer<VirtualMachine<'c>>,
+    pub(crate) symbols: SymbolTable<'c>,
+    pub(crate) vm: UniquePointer<VirtualMachine<'c>>,
 }
 
 impl<'c> Debug for Context<'c> {
@@ -22,9 +22,9 @@ impl<'c> Debug for Context<'c> {
         write!(
             f,
             "Context {{
-    symbols: {},
+    symbols: {:#?},
 }}",
-            &crate::symbol_table::debug(&self.symbols),
+            &self.symbols,
         )
     }
 }
@@ -32,7 +32,7 @@ impl<'c> Debug for Context<'c> {
 impl<'c> Context<'c> {
     pub fn new(
         vm: UniquePointer<VirtualMachine<'c>>,
-        symbols: BTreeMap<Symbol<'c>, Sym<'c>>,
+        symbols: SymbolTable<'c>,
     ) -> Context<'c> {
         Context { symbols, vm }
     }
@@ -48,15 +48,18 @@ impl<'c> Context<'c> {
             args,
             body,
         });
-        self.symbols.insert(name, function.clone());
+        self.symbols.set_global(
+            UniquePointer::read_only(self),
+            &name,
+            &function.clone(),
+        );
         function.as_value()
     }
 
-    pub fn symbols(&self) -> BTreeMap<Symbol<'c>, Sym<'c>> {
-        self.symbols.clone()
-    }
-
-    pub fn get_symbol_function(&mut self, sym: &str) -> Result<Option<Function<'c>>> {
+    pub fn get_symbol_function(
+        &mut self,
+        sym: &Symbol<'c>,
+    ) -> Result<Option<Function<'c>>> {
         let symbol = try_result!(self.get_symbol(sym)).clone();
         match symbol {
             Sym::Value(item) => Ok(None),
@@ -64,14 +67,10 @@ impl<'c> Context<'c> {
         }
     }
 
-    pub fn get_symbol(&mut self, sym: &str) -> Result<&Sym<'c>> {
-        let sym = Symbol::new(sym);
-        if !self.symbols.contains_key(&sym) {
-            self.symbols
-                .insert(sym.clone(), Sym::Value(Value::symbol(&sym)));
-        }
-        let symbol = self.symbols.get(&sym).unwrap();
-        Ok(symbol)
+    pub fn get_symbol(&mut self, sym: &Symbol<'c>) -> Result<Sym<'c>> {
+        Ok(try_result!(self
+            .symbols
+            .get(UniquePointer::read_only(self), sym)))
     }
 
     pub fn eval_symbol_function(
@@ -81,7 +80,7 @@ impl<'c> Context<'c> {
     ) -> Result<Value<'c>> {
         let vm = UniquePointer::read_only(self);
 
-        match try_result!(self.get_symbol_function(sym.symbol())) {
+        match try_result!(self.get_symbol_function(sym)) {
             Some(function) => {
                 dbg!(&sym, &list);
                 let result = function.call(vm, cdr(&list));
@@ -111,6 +110,9 @@ impl<'c> Context<'c> {
     }
 
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
+        if item.is_quoted() {
+            return Ok(item);
+        }
         warn!("\neval");
         dbg!(&self, &item);
         match &item {
@@ -128,30 +130,31 @@ impl<'c> Context<'c> {
         }
     }
 
-    pub fn setq(&mut self, sym: Symbol<'c>, item: Value<'c>) -> Result<Value<'c>> {
-        warn!("\nsetq");
-        //("setq", &item);
-        let symbol_value = Sym::Value(self.eval(item.clone())?);
-        let previous = self
-            .symbols
-            .insert(sym.clone(), symbol_value.clone());
+    pub fn set_global(
+        &mut self,
+        sym: &Symbol<'c>,
+        item: &Sym<'c>,
+    ) -> Result<Value<'c>> {
+        Ok(try_result!(self.symbols.set_global(
+            UniquePointer::read_only(self),
+            sym,
+            item
+        )))
+    }
 
-        let item = match previous.unwrap_or_else(|| symbol_value) {
-            Sym::Value(value) => value.clone(),
-            Sym::Function(Function::Defun { name, args, body }) => {
-                dbg!(&sym, &item, &name, &body, &args);
-                item
-            },
-            Sym::Function(Function::Builtin { name, function }) => {
-                dbg!(&sym, &item, &name, &function);
-                item
-            },
-        };
-
-        Ok(item)
+    pub fn set_local(&mut self, sym: &Symbol<'c>, item: &Sym<'c>) -> Result<Value<'c>> {
+        Ok(try_result!(self.symbols.set_local(
+            UniquePointer::read_only(self),
+            sym,
+            item
+        )))
     }
 
     pub fn eval_list(&mut self, list: Value<'c>) -> Result<Value<'c>> {
+        if list.is_quoted() {
+            return Ok(list);
+        }
+
         warn!("\neval_list");
         dbg!(&self, &list);
         if list.is_empty() {
@@ -188,7 +191,7 @@ impl<'c> Context<'c> {
         args: Value<'c>,
     ) -> Result<Value<'c>> {
         let mut vm = UniquePointer::read_only(self);
-        let symbol = try_result!(vm.inner_mut().get_symbol(sym.symbol()));
+        let symbol = try_result!(vm.inner_mut().get_symbol(sym));
         let function = sym;
         dbg!(&function, &args);
         match symbol {

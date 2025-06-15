@@ -1,16 +1,21 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Debug;
 
-use minilisp_data_structures::{car, cdr, AsValue, Cell, Symbol, Value};
+use minilisp_data_structures::{
+    car, cdr, AsValue, Cell, Quotable, Symbol, Value,
+};
 use minilisp_parser::parse_source;
 use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
-use crate::{builtin, runtime_error, BuiltinFunction, Context, Function, Result, Sym, warn};
+use crate::{
+    builtin, runtime_error, warn, BuiltinFunction, Context, Function, Result, Sym,
+    SymbolTable,
+};
 
 #[derive(Clone)]
 pub struct VirtualMachine<'c> {
-    symbols: BTreeMap<Symbol<'c>, Sym<'c>>,
+    symbols: SymbolTable<'c>,
     stack: VecDeque<UniquePointer<Context<'c>>>,
 }
 
@@ -19,10 +24,10 @@ impl<'c> Debug for VirtualMachine<'c> {
         write!(
             f,
             "VirtualMachine {{
-    symbols: {},
+    symbols: {:#?},
     stack_size: {:#?}
 }}",
-            &crate::symbol_table::debug(&self.symbols),
+            &self.symbols,
             self.stack.len()
         )
     }
@@ -31,7 +36,7 @@ impl<'c> Debug for VirtualMachine<'c> {
 impl<'c> VirtualMachine<'c> {
     pub fn new() -> VirtualMachine<'c> {
         VirtualMachine {
-            symbols: crate::symbol_table::new(),
+            symbols: SymbolTable::new(),
             stack: VecDeque::new(),
         }
     }
@@ -51,7 +56,7 @@ impl<'c> VirtualMachine<'c> {
 
     pub(crate) fn update_symbols(&mut self) {
         if let Some(context) = self.last_context() {
-            self.symbols.extend(context.symbols());
+            self.symbols.extend(context.symbols.clone());
         }
     }
 
@@ -80,9 +85,10 @@ impl<'c> VirtualMachine<'c> {
         sym: &Symbol<'c>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
-        let value = try_result!(self.push_context().eval_symbol_function(sym, list));
+        let value = try_result!(self
+            .push_context()
+            .eval_symbol_function(sym, list));
         self.update_symbols();
         Ok(value)
     }
-
 }
