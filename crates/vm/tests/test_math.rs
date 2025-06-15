@@ -81,3 +81,14 @@ fn test_compound_arithmetic() -> Result<()> {
     assert_equal!(val, Value::integer(42));
     Ok(())
 }
+
+
+#[test]
+fn test_eval_add_symbols() -> Result<()> {
+    let mut vm = VirtualMachine::new();
+    vm.setq("a".into(), Value::unsigned_integer(1u64));
+    vm.setq("b".into(), Value::unsigned_integer(1u64));
+    let val = vm.eval_string(r#"(+ a b)"#)?;
+    assert_equal!(val, Value::unsigned_integer(2u64));
+    Ok(())
+}

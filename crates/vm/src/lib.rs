@@ -75,12 +75,11 @@ impl<'c> Function<'c> {
                     .into_iter()
                     .zip(list.clone().into_iter())
                 {
-                    // let symbol = vm.inner_mut().eval_symbol(symbol);
                     try_result!(vm.inner_mut().setq(symbol.as_symbol(), value));
                 }
                 let mut value = Value::nil();
-                for mut value in body.clone().into_iter() {
-                    value = try_result!(vm.inner_mut().eval(value));
+                for mut val in body.clone().into_iter() {
+                    value = try_result!(vm.inner_mut().eval(val));
                 }
                 Ok(value)
             },
@@ -131,7 +130,6 @@ impl<'c> Sym<'c> {
             Sym::Value(value) => value.clone(),
             Sym::Function(Function::Builtin { name, function }) => Value::symbol(name),
             Sym::Function(Function::Defun { name, args, body }) => {
-                warn!(format!("{} {} {}", &name, &args, &body));
                 Value::list([
                     Value::from(name),
                     args.clone(),
@@ -326,7 +324,12 @@ impl<'c> VirtualMachine<'c> {
                     Ok(try_result!(self.eval_symbol_function(sym, cdr(&list))))
                 },
                 Value::List(_) => {
-                    Ok(list.clone())
+                    let mut cell = Cell::nil();
+                    for item in list.clone().into_iter() {
+                        dbg!(&item);
+                        cell.push_value(try_result!(self.eval(item.clone())));
+                    }
+                    Ok(Value::List(cell))
                     // let mut value = Value::empty_list();
                     // for result in list.into_iter().map(|value| self.eval(value)) {
                     //     value.extend([try_result!(result)]);

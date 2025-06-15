@@ -4,7 +4,7 @@ use minilisp_data_structures::{
     append, car, cdr, list, AsFloat, AsInteger, AsUnsignedInteger, Cell,
     Float, Integer, UnsignedInteger, Value,
 };
-use minilisp_util::try_result;
+use minilisp_util::{try_result, dbg};
 use unique_pointer::UniquePointer;
 
 // use crate::helpers::{
@@ -36,6 +36,8 @@ macro_rules! unfold_numeric_values_from_cdr {
             if value.$is_value_fragment_name() {
                 operands.add(&Cell::from(value));
             } else if value.is_list() {
+                operands.add(&Cell::from(try_result!($vm.inner_mut().eval(value))));
+            } else if value.is_symbol() {
                 operands.add(&Cell::from(try_result!($vm.inner_mut().eval(value))));
             } else {
                 return Err(with_caller!(runtime_error(
@@ -89,8 +91,9 @@ macro_rules! impl_arithmetic_operation {
                     let mut operands = unfold_numeric_values_from_cdr!('c, vm, list, Value::Float, as_float, is_float);
                     Ok(Value::Float(operands.fold(first, |lhs, rhs| lhs $operator rhs)))
                 },
-                Value::Symbol(sym) => {
-                    Ok(try_result!(vm.inner_mut().eval_symbol(sym, cdr(&list))))
+                Value::Symbol(sym) | Value::QuotedSymbol(sym) => {
+                    let first = try_result!(vm.inner_mut().eval(Value::from(sym)));
+                    Ok(try_result!($function_name(vm, append([first, cdr(&list)]))))
                 },
                 Value::List(_) | Value::QuotedList(_) => {
                     Ok(try_result!($function_name(vm.clone(), append([try_result!(vm.inner_mut().eval(car(&list))), cdr(&list)]))))
@@ -98,7 +101,7 @@ macro_rules! impl_arithmetic_operation {
                 value => Err(with_caller!(runtime_error(
                     format!(
                         "{:#?} called with non-numerical value: {:#?}",
-                        stringify!($operator),
+                        "$operator",
                         value
                     ),
                     None

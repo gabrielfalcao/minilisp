@@ -19,7 +19,7 @@ fn test_print() -> Result<()> {
             Value::unsigned_integer(2u64),
             Value::unsigned_integer(2u64)
         ])
-        .quote()
+
     );
     Ok(())
 }

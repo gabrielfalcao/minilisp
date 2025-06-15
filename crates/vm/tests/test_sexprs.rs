@@ -16,7 +16,7 @@ use minilisp_data_structures::{append, car, cdr, cons, list, setcar, setcdr, ass
 #[test]
 fn test_list_quoted_sexprs() -> Result<()> {
     assert_eval_display!(
-        "(cdr '('a 'b 'c))" => "'('b 'c)"
+        "(cdr '('a 'b 'c))" => "('b 'c)"
     );
     assert_eval!(
         "(list 'a 'b 'c)",
@@ -25,7 +25,6 @@ fn test_list_quoted_sexprs() -> Result<()> {
             Value::quoted_symbol("b"),
             Value::quoted_symbol("c"),
         ])
-        .quote()
     );
     assert_eval!(
         "(append '('a 'b) '('c))",
@@ -34,13 +33,12 @@ fn test_list_quoted_sexprs() -> Result<()> {
             Value::quoted_symbol("b"),
             Value::quoted_symbol("c"),
         ])
-        .quote()
     );
     assert_eval_display!(
-        "(list 'a 'b 'c)" => "'('a 'b 'c)"
+        "(list 'a 'b 'c)" => "('a 'b 'c)"
     );
     assert_eval_display!(
-        "(list '(x y z) 3) " => "'('(x y z) 3)"
+        "(list '(x y z) 3) " => "('(x y z) 3)"
     );
     assert_eval!(
         "(list '('a 'b 'c))",
@@ -50,19 +48,18 @@ fn test_list_quoted_sexprs() -> Result<()> {
             Value::quoted_symbol("c"),
         ])
         .quote()])
-        .quote()
     );
     assert_eval_display!(
-        "(car '('a 'b 'c))" => "a"
+        "(car '('a 'b 'c))" => "'a"
     );
     assert_eval_display!(
-        "(list 'a 'b 'c) " => "'('a 'b 'c)"
+        "(list 'a 'b 'c) " => "('a 'b 'c)"
     );
     assert_eval_display!(
         "'(x y z)" => "'(x y z)"
     );
     assert_eval_display!(
-        "(list '(x y z) 3) " => "'('(x y z) 3)"
+        "(list '(x y z) 3) " => "('(x y z) 3)"
     );
     Ok(())
 }

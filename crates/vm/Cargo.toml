@@ -34,14 +34,14 @@ k9 = { workspace = true }
 [package.metadata]
 cargo-args = ["-Zmtime-on-use", "-Zavoid-dev-deps", "-Zcustom_mir"]
 
-[[test]]
-name = "test_sexprs"
-path = "./tests/test_sexprs.rs"
-
 
 [[test]]
 name = "test_defun"
 path = "./tests/test_defun.rs"
+
+[[test]]
+name = "test_sexprs"
+path = "./tests/test_sexprs.rs"
 
 [[test]]
 name = "test_list"
