@@ -1,14 +1,12 @@
-use std::borrow::Cow;
-use std::collections::{BTreeMap, VecDeque}; //BinaryHeap;
+ //BinaryHeap;
 
-use minilisp_data_structures::{append, car, cdr, list, Cell, Value};
-use minilisp_util::{dbg, try_result};
+use minilisp_data_structures::Value;
 use unique_pointer::UniquePointer;
 
-use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
+use crate::{Result, Context};
 
 pub fn print<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     println!(

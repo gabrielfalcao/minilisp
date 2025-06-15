@@ -1,23 +1,20 @@
-use std::borrow::Cow;
-use std::collections::BTreeMap;
 
 use minilisp_data_structures as ds;
 use minilisp_data_structures::{AsCell, Quotable, Value};
-use minilisp_util::{dbg, try_result, vec_deque};
 use unique_pointer::UniquePointer;
 
 use crate::helpers::runtime_error;
-use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
+use crate::{Result, Context};
 
 pub fn list<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::list(list))
 }
 
 pub fn cons<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     let cell = ds::cons(ds::car(&list), &mut ds::cdr(&list).as_cell());
@@ -28,7 +25,7 @@ pub fn cons<'c>(
     })
 }
 pub fn quote<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     value: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(match &value {
@@ -47,27 +44,27 @@ pub fn quote<'c>(
     })
 }
 pub fn backquote<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(list)
 }
 
 pub fn car<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::car(&ds::append(list)))
 }
 
 pub fn cdr<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::cdr(&ds::append(list)))
 }
 pub fn append<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(ds::append(list))

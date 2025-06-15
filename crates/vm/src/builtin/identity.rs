@@ -1,11 +1,11 @@
 #![allow(unused)]
 use minilisp_data_structures::Value;
 
-use crate::{Result, VirtualMachine};
+use crate::{Result, Context};
 use unique_pointer::UniquePointer;
 
 pub fn t<'c>(
-    mut vm: UniquePointer<VirtualMachine<'c>>,
+    mut vm: UniquePointer<Context<'c>>,
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     Ok(Value::T)

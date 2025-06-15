@@ -1,5 +1,4 @@
 use iocore_test::folder_path;
-use k9::assert_equal;
 use minilisp_formatter::format_code;
 use minilisp_macros_core::{
     assert_streams_equal, try_result, EnumBuilder, Error, Result,
