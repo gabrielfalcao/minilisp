@@ -8,7 +8,7 @@ use minilisp_data_structures::{
 use minilisp_util::{try_result, with_caller};
 use unique_pointer::UniquePointer;
 
-use crate::{runtime_error, Result, Context, BuiltinFunction};
+use crate::{runtime_error, Result, Context, BuiltinFunction, warn};
 
 #[derive(Clone)]
 pub enum Function<'c> {
@@ -49,6 +49,7 @@ impl<'c> Function<'c> {
         mut vm: UniquePointer<Context<'c>>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
+        warn!(format!("\ncalling {:#?}", &self));
         match self {
             Function::Defun { name, args, body } => {
                 try_result!(self.validate_args(name, args, &list));
@@ -62,7 +63,9 @@ impl<'c> Function<'c> {
                 }
                 let mut value = Value::nil();
                 for val in body.clone().into_iter() {
+                    dbg!(&value, &name, args, body);
                     value = try_result!(vm.inner_mut().eval(val));
+                    dbg!(&value, &name, args, body);
                 }
                 Ok(value)
             },

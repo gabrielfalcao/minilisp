@@ -16,6 +16,30 @@ pub(self) fn register_builtin_function<'c>(
     table.insert(Symbol::new(sym), function.clone());
 }
 
+pub fn debug<'c>(table: &BTreeMap<Symbol<'c>, Sym<'c>>) -> String {
+    let mut symbols = BTreeMap::<Symbol<'c>, Sym<'c>>::new();
+    for (key, value) in table.into_iter() {
+        if let Sym::Value(_) = value.clone() {
+            symbols.insert(key.clone(), value.clone());
+        }
+    }
+    format!("{:#?}", symbols)
+        .lines()
+        .enumerate()
+        .map(|(index, line)| {
+            format!(
+                "{}{}",
+                " ".repeat(if index > 0 {
+                    4
+                } else {
+                    0
+                }),
+                line
+            )
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
 pub fn new<'c>() -> BTreeMap<Symbol<'c>, Sym<'c>> {
     let mut table = BTreeMap::<Symbol<'c>, Sym<'c>>::new();
     // identity functions
