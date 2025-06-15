@@ -27,10 +27,14 @@ pub fn makelist<'c>(value: Value<'c>, count: usize) -> Value<'c> {
     (0..count).map(|_| value.clone()).collect()
 }
 pub fn car<'c>(value: &Value<'c>) -> Value<'c> {
-    match value {
+    let is_quoted = value.is_quoted();
+    let value = match value {
         Value::List(cell) | Value::QuotedList(cell) => cell.head().unwrap_or_default(),
         _ => Value::Nil,
-    }
+    };
+    if is_quoted {
+        value.quote()
+    } else {value}
 }
 
 pub fn cdr<'c>(item: &Value<'c>) -> Value<'c> {
@@ -43,16 +47,13 @@ pub fn cdr<'c>(item: &Value<'c>) -> Value<'c> {
     }
 }
 pub fn list<'c, T: ListIterator<'c, Value<'c>>>(list: T) -> Value<'c> {
+    dbg!(&list);
     let mut cell = Cell::nil();
-    let is_quoted = list.is_quoted();
     for item in list.into_iter() {
+        dbg!(&item);
         cell.push_value(item);
     }
-    if is_quoted {
-        Value::QuotedList(cell)
-    } else {
-        Value::List(cell)
-    }
+    Value::List(cell)
 }
 
 pub fn setcar<'c>(cell: &Cell<'c>, sym: &Symbol, value: &Value) {}

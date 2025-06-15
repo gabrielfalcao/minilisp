@@ -612,14 +612,17 @@ impl<'c> IntoIterator for Value<'c> {
     type Item = Value<'c>;
 
     fn into_iter(self) -> Self::IntoIter {
-        ValueIterator::new(
-            &match self {
-                Value::List(ref cell) | Value::QuotedList(ref cell) => cell.clone(),
-                Value::EmptyList | Value::EmptyQuotedList => Cell::nil(),
-                ref value => Cell::from(value.clone()),
-            },
-            self.is_quoted(),
-        )
+        let cell = match self {
+            Value::List(ref cell) | Value::QuotedList(ref cell) => cell.clone(),
+            Value::EmptyList | Value::EmptyQuotedList => Cell::nil(),
+            ref value => Cell::from(value),
+        };
+        let cell = if self.is_quoted() {
+            cell.quote()
+        } else {
+            cell
+        };
+        ValueIterator::new(&cell, self.is_quoted())
     }
 }
 

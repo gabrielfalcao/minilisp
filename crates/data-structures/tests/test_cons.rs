@@ -38,6 +38,12 @@ fn test_car() {
     ]);
     assert_equal!(value.head(), Some(Value::from("head")));
     assert_equal!(car(&value), Value::from("head"));
+    let value = list([
+        Value::symbol("head"),
+        Value::from("tail"),
+    ]).quote();
+    assert_equal!(value.head(), Some(Value::symbol("head")));
+    assert_equal!(car(&value), Value::symbol("head"));
 }
 
 #[test]

@@ -218,7 +218,7 @@ impl<'c> VirtualMachine<'c> {
 
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
         match &item {
-            Value::QuotedList(_) | Value::List(_) => match car(&item) {
+            Value::List(_) | Value::QuotedList(_) => match car(&item) {
                 Value::Symbol(ref symbol) =>
                     Ok(try_result!(self.eval_symbol_function(symbol, cdr(&item)))),
                 _ => Ok(item.quote()),

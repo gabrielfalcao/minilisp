@@ -11,9 +11,10 @@ use crate::{with_caller, Error, ErrorType, Result, VirtualMachine};
 
 pub fn list<'c>(
     mut vm: UniquePointer<VirtualMachine<'c>>,
-    value: Value<'c>,
+    list: Value<'c>,
 ) -> Result<Value<'c>> {
-    Ok(ds::list(value))
+    dbg!(&list);
+    Ok(ds::list(list))
 }
 
 pub fn cons<'c>(
@@ -58,7 +59,7 @@ pub fn car<'c>(
     list: Value<'c>,
 ) -> Result<Value<'c>> {
     dbg!(&list);
-    Ok(ds::car(&list))
+    Ok(ds::car(&ds::car(&list)))
 }
 
 pub fn cdr<'c>(

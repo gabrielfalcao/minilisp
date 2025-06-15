@@ -16,7 +16,7 @@ pub trait Quotable: Sized + Debug {
     fn is_quoted(&self) -> bool;
     fn set_quoted(&mut self, quoted: bool);
 
-    fn quote(&mut self) -> Self {
+    fn quote(&self) -> Self {
         use unique_pointer::UniquePointer;
         let mut item = UniquePointer::from_ref(self).read();
         item.set_quoted(true);

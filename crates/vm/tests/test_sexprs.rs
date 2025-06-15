@@ -9,20 +9,42 @@ use minilisp_data_structures::{
     Cell, Value,
 };
 #[rustfmt::skip]
-use minilisp_vm::{assert_eval_display, Result};
+use minilisp_vm::{assert_eval,assert_eval_display, Result};
 #[rustfmt::skip]
 use minilisp_data_structures::{append, car, cdr, cons, list, setcar, setcdr, assert_display_equal};
 
 #[test]
 fn test_list_quoted_sexprs() -> Result<()> {
-    assert_eval_display!(
-        "(list 'a 'b 'c)" => "'(a b c)"
+    // assert_eval!(
+    //     "(list 'a 'b 'c)",
+    //     list([
+    //         Value::quoted_symbol("a"),
+    //         Value::quoted_symbol("b"),
+    //         Value::quoted_symbol("c"),
+    //     ])
+    //     .quote()
+    // );
+    // assert_eval_display!(
+    //     "(list 'a 'b 'c)" => "'('a 'b 'c)"
+    // );
+    // assert_eval_display!(
+    //     "(list '(x y z) 3) " => "'('(x y z) 3)"
+    // );
+    assert_eval!(
+        "(list '('a 'b 'c))",
+        list([list([
+            Value::quoted_symbol("a"),
+            Value::quoted_symbol("b"),
+            Value::quoted_symbol("c"),
+        ])
+        .quote()])
+        .quote()
     );
     assert_eval_display!(
-        "(list '(x y z) 3) " => " '((x y z) 3)"
+        "(car '('a 'b 'c))" => "'a"
     );
     assert_eval_display!(
-        "(list 'a 'b 'c) " => " (a b c)"
+        "(list 'a 'b 'c) " => "('a 'b 'c)"
     );
     assert_eval_display!(
         "'(x y z)" => "'((x y z) 3)"

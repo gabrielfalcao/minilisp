@@ -76,7 +76,7 @@ impl<'c> Cell<'c> {
 
     pub fn push_value(&mut self, value: Value<'c>) {
         let is_quoted = value.is_quoted();
-        let mut cell = Cell::new(value);
+        let mut cell = Cell::quoted(Some(value), is_quoted);
         let cell = if is_quoted {
             cell.quote()
         } else {
@@ -327,12 +327,12 @@ impl<'c> AsCell<'c> for String {
 
 impl<'c> From<Value<'c>> for Cell<'c> {
     fn from(value: Value<'c>) -> Cell<'c> {
-        Cell::new(value)
+        Cell::quoted(Some(value.clone()), value.is_quoted())
     }
 }
 impl<'c> From<&Value<'c>> for Cell<'c> {
     fn from(value: &Value<'c>) -> Cell<'c> {
-        Cell::new(value.clone())
+        Cell::quoted(Some(value.clone()), value.is_quoted())
     }
 }
 

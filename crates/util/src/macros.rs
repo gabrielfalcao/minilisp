@@ -5,7 +5,10 @@ macro_rules! location {
             "{}{}{}:{}",
             minilisp_util::color::fg($crate::function_name!(), 28),
             minilisp_util::color::fg(" file ", 220),
-            $crate::filename!(),
+            minilisp_util::color::fg(
+                $crate::filename!(),
+                minilisp_util::color::from_string($crate::filename!()) as usize
+            ),
             minilisp_util::color::fg(line!().to_string(), 49)
         );
         location
@@ -34,26 +37,31 @@ macro_rules! location {
 }
 #[macro_export]
 macro_rules! filename {
-    () => {
-        $crate::filename!(237, 49)
-    };
-    ($folder_color:literal, $file_color:literal) => {{
+    () => {{
         let mut parts = file!()
             .split(std::path::MAIN_SEPARATOR_STR)
             .map(String::from)
             .collect::<Vec<String>>();
         let (folder, filename) = if parts.len() > 1 {
-            let last =
-                minilisp_util::color::fg(parts.remove(parts.len() - 1), $file_color);
+            let last = parts.remove(parts.len() - 1);
+            let folder_color =
+                minilisp_util::color::from_string(parts[0].to_string()) as usize;
+            let last = minilisp_util::color::fg(
+                last.to_string(),
+                minilisp_util::color::from_string(last.to_string()) as usize,
+            );
             let mut parts = parts
                 .iter()
-                .map(|part| minilisp_util::color::fg(part, $folder_color))
+                .map(|part| minilisp_util::color::fg(part, folder_color))
                 .collect::<Vec<String>>();
             (parts, last)
         } else {
+            let file_color =
+                minilisp_util::color::from_string(parts[0].to_string()) as usize;
+
             (
                 Vec::<String>::new(),
-                minilisp_util::color::fg(parts[0].to_string(), $file_color),
+                minilisp_util::color::fg(parts[0].to_string(), file_color),
             )
         };
         if folder.len() > 1 {
