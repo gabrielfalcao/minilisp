@@ -7,8 +7,8 @@ use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
 use crate::{
-    builtin, runtime_error, warn, BuiltinFunction, Function, Result, Sym, SymbolTable,
-    VirtualMachine,
+    builtin, info, runtime_error, warn, BuiltinFunction, Function, Result, Sym,
+    SymbolTable, VirtualMachine,
 };
 
 #[derive(Clone)]
@@ -34,7 +34,10 @@ impl<'c> Context<'c> {
         vm: UniquePointer<VirtualMachine<'c>>,
         symbols: SymbolTable<'c>,
     ) -> Context<'c> {
-        Context { symbols, vm }
+        // info!("VirtualMachine.new", 178);
+        let context = Context { symbols, vm };
+        // dbg!(&context);
+        context
     }
 
     pub fn register_function(
@@ -60,11 +63,17 @@ impl<'c> Context<'c> {
         &mut self,
         sym: &Symbol<'c>,
     ) -> Result<Option<Function<'c>>> {
+        // info!("get_symbol_function", 187);
         let symbol = try_result!(self.get_symbol(sym)).clone();
-        match symbol {
-            Sym::Value(item) => Ok(None),
+        let result = match symbol {
+            Sym::Value(item) => {
+                // dbg!(&item);
+                Ok(None)
+            },
             Sym::Function(function) => Ok(Some(function)),
-        }
+        };
+        // dbg!(&self.symbols, &sym, &result);
+        result
     }
 
     pub fn get_symbol(&mut self, sym: &Symbol<'c>) -> Result<Sym<'c>> {
@@ -78,12 +87,14 @@ impl<'c> Context<'c> {
         sym: &Symbol<'c>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
+        // info!("eval_symbol_function", 196);
+        // dbg!(&sym, &list);
         let vm = UniquePointer::read_only(self);
 
         match try_result!(self.get_symbol_function(sym)) {
             Some(function) => {
-                dbg!(&sym, &list);
-                let result = function.call(vm, cdr(&list));
+                // dbg!(&sym, &list);
+                let result = function.call(vm, list);
                 match result {
                     Ok(item) => Ok(self.eval(item)?),
                     Err(error) => Err(runtime_error(
@@ -95,7 +106,7 @@ impl<'c> Context<'c> {
             None => Ok(Value::from({
                 let mut cell = Cell::nil();
                 cell.push_value(Value::from(sym));
-                dbg!(&sym, &list);
+                // dbg!(&sym, &list);
                 for item in list.into_iter() {
                     cell.push_value(item);
                 }
@@ -105,13 +116,13 @@ impl<'c> Context<'c> {
     }
 
     pub fn eval_string(&mut self, string: &'c str) -> Result<Value<'c>> {
-        warn!(format!("{:#?}.eval_string {:#?}", &self, &string));
+        // info!(format!("Context.eval_string {:#?}", &string), 202);
         Ok(try_result!(self.eval(try_result!(parse_source(string)))))
     }
 
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
-        warn!(format!("eval {:#?}", &item));
-        dbg!(&self, &item);
+        // info!(format!("Context.eval {:#?}", &item), 9);
+        // dbg!(&self, &item);
         if item.is_quoted() {
             return Ok(item);
         }
@@ -130,6 +141,8 @@ impl<'c> Context<'c> {
         sym: &Symbol<'c>,
         item: &Sym<'c>,
     ) -> Result<Value<'c>> {
+        // info!(format!("set_global {} {}", &sym, &item), 125);
+
         Ok(try_result!(self.symbols.set_global(
             UniquePointer::read_only(self),
             sym,
@@ -138,6 +151,7 @@ impl<'c> Context<'c> {
     }
 
     pub fn set_local(&mut self, sym: &Symbol<'c>, item: &Sym<'c>) -> Result<Value<'c>> {
+        // info!(format!("set_local {} {}", &sym, &item), 206);
         Ok(try_result!(self.symbols.set_local(
             UniquePointer::read_only(self),
             sym,
@@ -146,36 +160,29 @@ impl<'c> Context<'c> {
     }
 
     pub fn eval_list(&mut self, list: Value<'c>) -> Result<Value<'c>> {
+        // info!(format!("eval_list {}", &list), 82);
+        // dbg!(&list);
         if list.is_quoted() {
             return Ok(list);
         }
 
-        warn!("eval_list");
-        dbg!(&self, &list);
         if list.is_empty() {
             Ok(Value::Nil)
         } else {
             match car(&list) {
-                Value::Symbol(ref sym) => {
-                    dbg!(&sym);
+                Value::Symbol(ref sym) | Value::QuotedSymbol(ref sym) => {
+                    // dbg!(&sym);
                     Ok(try_result!(self.eval_symbol_function(sym, cdr(&list))))
                 },
-                Value::List(_) => {
+                Value::List(_) | Value::QuotedList(_) => {
                     let mut cell = Cell::nil();
                     for item in list.clone().into_iter() {
-                        dbg!(&item);
+                        // dbg!(&item);
                         cell.push_value(try_result!(self.eval(item.clone())));
                     }
                     Ok(Value::List(cell))
-                    // let mut value = Value::empty_list();
-                    // for result in list.into_iter().map(|value| self.eval(value)) {
-                    //     value.extend([try_result!(result)]);
-                    // }
-                    // Ok(value)
                 },
-                value => {
-                    unexpected!(value)
-                },
+                _ => Ok(list),
             }
         }
     }
@@ -185,10 +192,12 @@ impl<'c> Context<'c> {
         sym: &Symbol<'c>,
         args: Value<'c>,
     ) -> Result<Value<'c>> {
+        // info!("eval_symbol");
+        // dbg!(&sym, &args);
         let mut vm = UniquePointer::read_only(self);
         let symbol = try_result!(vm.inner_mut().get_symbol(sym));
         let function = sym;
-        dbg!(&function, &args);
+        // dbg!(&function, &args);
         match symbol {
             Sym::Value(value) => Ok(value.clone()),
             Sym::Function(function) => {

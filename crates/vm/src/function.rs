@@ -1,5 +1,5 @@
 use std::cmp::{Ordering, PartialEq, PartialOrd};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 use std::hash::{Hash, Hasher};
 use std::iter::Zip;
 
@@ -9,7 +9,7 @@ use minilisp_data_structures::{
 use minilisp_util::{try_result, with_caller};
 use unique_pointer::UniquePointer;
 
-use crate::{runtime_error, warn, BuiltinFunction, Context, Result, Sym};
+use crate::{runtime_error, admonition, warn, BuiltinFunction, Context, Result, Sym};
 
 #[derive(Clone)]
 pub enum Function<'c> {
@@ -69,7 +69,7 @@ impl<'c> Function<'c> {
         mut vm: UniquePointer<Context<'c>>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
-        warn!(format!("\ncalling {:#?}", &self));
+        admonition!("calling", format!("{:#?}", &self), 58);
         match self {
             Function::Defun { name, args, body } => {
                 try_result!(self.bind_args_to_local_context(vm.clone(), name, args, &list));
@@ -86,6 +86,21 @@ impl<'c> Function<'c> {
                 Ok(try_result!(function(vm, list)))
             },
         }
+    }
+}
+
+impl<'c> Display for Function<'c> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Function::Defun { name, args, body } =>
+                    format!("(defun {} {} {})", name, args, body),
+                Function::Builtin { name, function } =>
+                    format!("builtin-function {} {:#?}", name, function),
+            }
+        )
     }
 }
 

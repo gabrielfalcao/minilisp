@@ -6,7 +6,8 @@ use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
 use crate::{
-    builtin, info, warn, BuiltinFunction, Context, Function, Result, Sym, VirtualMachine,
+    builtin, info, warn, BuiltinFunction, Context, Function, Result, Sym,
+    VirtualMachine,
 };
 
 pub type SymTable<'c> = BTreeMap<Symbol<'c>, Sym<'c>>;
@@ -21,25 +22,55 @@ impl<'c> Debug for SymbolTable<'c> {
         write!(
             f,
             "SymbolTable {{
-        globals: {},
-        locals: {}
+        globals: {:#?},
+        locals: {:#?}
     }}",
-            &debug(&self.globals),
-            &debug(&self.locals),
+            &self.globals,
+            &self.locals,
+            // &debug(&self.globals),
+            // &debug(&self.locals),
         )
     }
 }
 
 impl<'c> SymbolTable<'c> {
     pub fn new() -> SymbolTable<'c> {
+        // info!("SymbolTable.new");
         SymbolTable::with_locals(SymTable::new())
     }
 
     pub fn with_locals(locals: SymTable<'c>) -> SymbolTable<'c> {
-        SymbolTable {
-            globals: globals(),
+        // info!("SymbolTable.with_locals");
+        let mut globals = SymTable::<'c>::new();
+        // identity functions
+        register_builtin_function(&mut globals, "t", builtin::identity::t);
+
+        // state side-effect functions
+        register_builtin_function(&mut globals, "setq", builtin::state::setq);
+        register_builtin_function(&mut globals, "defun", builtin::state::defun);
+
+        // list functions
+        register_builtin_function(&mut globals, "car", builtin::list::car);
+        register_builtin_function(&mut globals, "cdr", builtin::list::cdr);
+        register_builtin_function(&mut globals, "cons", builtin::list::cons);
+        register_builtin_function(&mut globals, "list", builtin::list::list);
+        register_builtin_function(&mut globals, "append", builtin::list::append);
+        register_builtin_function(&mut globals, "quote", builtin::list::quote);
+        register_builtin_function(&mut globals, "print", builtin::string::print);
+        register_builtin_function(&mut globals, "backquote", builtin::list::backquote);
+
+        // arithmetic functions
+        register_builtin_function(&mut globals, "*", builtin::math::arithmetic::mul);
+        register_builtin_function(&mut globals, "+", builtin::math::arithmetic::add);
+        register_builtin_function(&mut globals, "-", builtin::math::arithmetic::sub);
+        register_builtin_function(&mut globals, "/", builtin::math::arithmetic::div);
+
+        let mut table = SymbolTable {
+            globals: globals.clone(),
             locals,
-        }
+        };
+        // dbg!(&globals, &table);
+        table
     }
 
     pub fn extend(&mut self, other: Self) {
@@ -52,6 +83,7 @@ impl<'c> SymbolTable<'c> {
         sym: &Symbol<'c>,
         item: &Sym<'c>,
     ) -> Result<Value<'c>> {
+        // info!(format!("SymbolTable.set_global {} {}", &sym, &item), 231);
         Ok(try_result!(set_within_map(&mut self.globals, context, sym, item)))
     }
 
@@ -61,6 +93,7 @@ impl<'c> SymbolTable<'c> {
         sym: &Symbol<'c>,
         item: &Sym<'c>,
     ) -> Result<Value<'c>> {
+        // info!(format!("SymbolTable.set_global {} {}", &sym, &item), 16);
         Ok(try_result!(set_within_map(&mut self.locals, context, sym, item)))
     }
 
@@ -69,32 +102,30 @@ impl<'c> SymbolTable<'c> {
         mut vm: UniquePointer<Context<'c>>,
         sym: &Symbol<'c>,
     ) -> Result<Sym<'c>> {
-        info!(format!("SymbolTable.get {:#?}", &sym));
-        dbg!(&self, sym);
-        let unevaluated_value = if let Some(value) = self
+        // info!(format!("SymbolTable.get {:#?}", &sym), 51);
+        // dbg!(&sym, &self.globals, &self.locals);
+        if let Some(value) = self
             .locals
             .get(sym)
-            .or_else(|| self.globals.get(sym))
+            .map(Clone::clone)
+            .or_else(|| self.globals.get(sym).map(Clone::clone))
         {
-            value.clone()
+            // warn!(format!("FOUND {:#?}", &value), 202);
+            return Ok(value);
         } else {
+            // warn!(format!("NOT FOUND {:#?}", &sym), 33);
             // trying to get a non-existing symbol places it into
             // the local context
             self.locals
                 .insert(sym.clone(), Sym::Value(sym.as_value()));
-            Sym::Value(sym.as_value())
+            return Ok(Sym::Value(sym.as_value()));
         }
-        .as_value();
-
-        let evaluated_value = try_result!(vm.eval(unevaluated_value.clone()));
-        dbg!(&unevaluated_value, &evaluated_value);
-        Ok(Sym::Value(evaluated_value))
     }
 }
 
 fn register_builtin_function<'c>(
     table: &mut SymTable<'c>,
-    sym: &'c str,
+    sym: &str,
     function: BuiltinFunction,
 ) {
     let function = Sym::<'c>::Function(Function::Builtin {
@@ -104,76 +135,26 @@ fn register_builtin_function<'c>(
     table.insert(Symbol::new(sym), function.clone());
 }
 
-pub fn debug<'c>(table: &SymTable<'c>) -> String {
-    let mut symbols = SymTable::new();
-    for (key, value) in table.into_iter() {
-        if let Sym::Value(_) = value.clone() {
-            symbols.insert(key.clone(), value.clone());
-        }
-    }
-    format!("{:#?}", symbols)
-        .lines()
-        .enumerate()
-        .map(|(index, line)| {
-            format!(
-                "{}{}",
-                " ".repeat(if index > 0 {
-                    4
-                } else {
-                    0
-                }),
-                line
-            )
-        })
-        .collect::<Vec<String>>()
-        .join("\n")
-}
-fn globals<'c>() -> SymTable<'c> {
-    let mut table = SymTable::new();
-    // identity functions
-    register_builtin_function(&mut table, "t", builtin::identity::t);
-
-    // state side-effect functions
-    register_builtin_function(&mut table, "setq", builtin::state::setq);
-    register_builtin_function(&mut table, "defun", builtin::state::defun);
-
-    // list functions
-    register_builtin_function(&mut table, "car", builtin::list::car);
-    register_builtin_function(&mut table, "cdr", builtin::list::cdr);
-    register_builtin_function(&mut table, "cons", builtin::list::cons);
-    register_builtin_function(&mut table, "list", builtin::list::list);
-    register_builtin_function(&mut table, "append", builtin::list::append);
-    register_builtin_function(&mut table, "quote", builtin::list::quote);
-    register_builtin_function(&mut table, "print", builtin::string::print);
-    register_builtin_function(&mut table, "backquote", builtin::list::backquote);
-
-    // arithmetic functions
-    register_builtin_function(&mut table, "*", builtin::math::arithmetic::mul);
-    register_builtin_function(&mut table, "+", builtin::math::arithmetic::add);
-    register_builtin_function(&mut table, "-", builtin::math::arithmetic::sub);
-    register_builtin_function(&mut table, "/", builtin::math::arithmetic::div);
-    table
-}
-
 fn set_within_map<'c>(
     map: &mut SymTable<'c>,
     context: UniquePointer<Context<'c>>,
     sym: &Symbol<'c>,
     item: &Sym<'c>,
 ) -> Result<Value<'c>> {
+    info!(format!("set_within_map {} {}", &sym, &item), 29);
     let previous = map.insert(sym.clone(), item.clone());
 
     Ok(match previous.unwrap_or_else(|| item.clone()) {
         Sym::Value(value) => {
-            dbg!(&(value,), &item, &sym, &context);
+            dbg!(&(value,), &item, &sym);
             item.clone()
         },
         Sym::Function(Function::Defun { name, args, body }) => {
-            dbg!(&(name, args, body), &item, &sym, &context);
+            dbg!(&(name, args, body), &item, &sym);
             item.clone()
         },
         Sym::Function(Function::Builtin { name, function }) => {
-            dbg!(&(name, function), &item, &sym, &context);
+            dbg!(&(name, function), &item, &sym);
             item.clone()
         },
     }

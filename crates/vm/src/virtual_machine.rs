@@ -9,7 +9,7 @@ use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
 use crate::{
-    builtin, runtime_error, warn, BuiltinFunction, Context, Function, Result, Sym,
+    builtin,info, runtime_error, warn, BuiltinFunction, Context, Function, Result, Sym,
     SymbolTable,
 };
 
@@ -35,18 +35,23 @@ impl<'c> Debug for VirtualMachine<'c> {
 
 impl<'c> VirtualMachine<'c> {
     pub fn new() -> VirtualMachine<'c> {
-        VirtualMachine {
+         // info!("VirtualMachine.new", 178);
+        let vm = VirtualMachine {
             symbols: SymbolTable::new(),
             stack: VecDeque::new(),
-        }
+        };
+         // dbg!(&vm);
+        vm
     }
 
     pub(crate) fn push_context(&mut self) -> UniquePointer<Context<'c>> {
+         // info!("VirtualMachine.push_context", 178);
         let context = UniquePointer::<Context<'c>>::from(Context::new(
             UniquePointer::read_only(self),
             self.symbols.clone(),
         ));
         self.stack.push_front(context.clone());
+         // dbg!(&context);
         context
     }
 

@@ -1,5 +1,5 @@
 use std::cmp::{Ordering, PartialEq, PartialOrd};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 use std::hash::{Hash, Hasher};
 
 use minilisp_data_structures::{
@@ -14,6 +14,18 @@ pub enum Sym<'c> {
     Function(Function<'c>),
 }
 
+impl<'c> Display for Sym<'c> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Sym::Value(value) => format!("{}", value),
+                Sym::Function(function) => format!("{}", function),
+            }
+        )
+    }
+}
 impl<'c> Debug for Sym<'c> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(
