@@ -43,5 +43,6 @@ pub fn defun<'c>(
     let name = car(&list).as_symbol();
     let args = car(&cdr(&list));
     let body = cdr(&cdr(&list));
+    dbg!(&name, &args, &body);
     Ok(vm.register_function(name, args, body))
 }

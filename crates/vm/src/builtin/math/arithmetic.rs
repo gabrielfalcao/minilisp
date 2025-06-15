@@ -90,7 +90,7 @@ macro_rules! impl_arithmetic_operation {
                     Ok(Value::Float(operands.fold(first, |lhs, rhs| lhs $operator rhs)))
                 },
                 Value::Symbol(sym) => {
-                    todo!("evaluate symbol: {:#?}", sym);
+                    Ok(try_result!(vm.inner_mut().eval_symbol(sym, cdr(&list))))
                 },
                 Value::List(_) | Value::QuotedList(_) => {
                     Ok(try_result!($function_name(vm.clone(), append([try_result!(vm.inner_mut().eval(car(&list))), cdr(&list)]))))

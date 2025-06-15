@@ -28,10 +28,89 @@ pub type BuiltinFunction =
     for<'c> fn(UniquePointer<VirtualMachine<'c>>, Value<'c>) -> Result<Value<'c>>;
 
 #[derive(Clone)]
+pub enum Function<'c> {
+    Builtin {
+        name: Symbol<'c>,
+        function: BuiltinFunction,
+    },
+    Defun {
+        name: Symbol<'c>,
+        args: Value<'c>,
+        body: Value<'c>,
+    },
+}
+impl<'c> Function<'c> {
+    pub fn validate_args(
+        &self,
+        name: &Symbol<'c>,
+        expected: &Value<'c>,
+        received: &Value<'c>,
+    ) -> Result<()> {
+        let expected_length = expected.len();
+        let received_length = received.len();
+        if expected_length != received_length {
+            Err(with_caller!(runtime_error(
+                format!(
+                    "{} expected {} args but received {}",
+                    name, expected_length, received_length
+                ),
+                None
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn call(
+        &self,
+        mut vm: UniquePointer<VirtualMachine<'c>>,
+        list: Value<'c>,
+    ) -> Result<Value<'c>> {
+        match self {
+            Function::Defun { name, args, body } => {
+                try_result!(self.validate_args(name, args, &list));
+                // bind args
+                for (symbol, value) in args
+                    .clone()
+                    .into_iter()
+                    .zip(list.clone().into_iter())
+                {
+                    // let symbol = vm.inner_mut().eval_symbol(symbol);
+                    try_result!(vm.inner_mut().setq(symbol.as_symbol(), value));
+                }
+                let mut value = Value::nil();
+                for mut value in body.clone().into_iter() {
+                    value = try_result!(vm.inner_mut().eval(value));
+                }
+                Ok(value)
+            },
+            Function::Builtin { name, function } => {
+                //
+                Ok(try_result!(function(vm, list)))
+            },
+        }
+    }
+}
+
+impl<'c> Debug for Function<'c> {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Function::Defun { name, args, body } =>
+                    format!("(defun {} {} {})", name, args, body),
+                Function::Builtin { name, function } =>
+                    format!("builtin-function {} {:#?}", name, function),
+            }
+        )
+    }
+}
+
+#[derive(Clone)]
 pub enum Sym<'c> {
     Value(Value<'c>),
-    BuiltinFunction(Symbol<'c>, BuiltinFunction),
-    Function(Symbol<'c>, Value<'c>, Value<'c>),
+    Function(Function<'c>),
 }
 
 impl<'c> Debug for Sym<'c> {
@@ -41,9 +120,7 @@ impl<'c> Debug for Sym<'c> {
             "{}",
             match self {
                 Sym::Value(value) => format!("{:#?}", value),
-                Sym::BuiltinFunction(name, _) => format!("builtin-function"),
-                Sym::Function(name, args, body) =>
-                    format!("(defun {} {} {})", name, args, body),
+                Sym::Function(function) => format!("{:#?}", function),
             }
         )
     }
@@ -52,13 +129,10 @@ impl<'c> Sym<'c> {
     pub fn as_value(&self) -> Value<'c> {
         match self {
             Sym::Value(value) => value.clone(),
-            Sym::BuiltinFunction(sym, function) => {
-                warn!(format!("symbol {} is a builtin-function", sym));
-                Value::symbol(sym)
-            },
-            Sym::Function(name, args, body) => {
+            Sym::Function(Function::Builtin { name, function }) => Value::symbol(name),
+            Sym::Function(Function::Defun { name, args, body }) => {
                 warn!(format!("{} {} {}", &name, &args, &body));
-                Value::quoted_list([
+                Value::list([
                     Value::from(name),
                     args.clone(),
                     append(body.clone()),
@@ -122,10 +196,12 @@ impl<'c> VirtualMachine<'c> {
         sym: &'c str,
         function: BuiltinFunction,
     ) {
-        self.symbols.insert(
-            Symbol::new(sym),
-            Sym::<'c>::BuiltinFunction(Symbol::new(sym), function),
-        );
+        let function = Sym::<'c>::Function(Function::Builtin {
+            name: Symbol::new(sym),
+            function: function,
+        });
+        self.symbols
+            .insert(Symbol::new(sym), function.clone());
     }
 
     pub fn register_function(
@@ -134,39 +210,24 @@ impl<'c> VirtualMachine<'c> {
         args: Value<'c>,
         body: Value<'c>,
     ) -> Value<'c> {
-        let function = Sym::<'c>::Function(name.clone(), args, body);
-        let previous = self
-            .symbols
-            .insert(name.clone(), function.clone());
-        if let Some(previous) = previous {
-            Value::string(format!("previous: {:#?}", previous))
-        } else {
-            Value::string(format!("{:#?}", function))
-        }
+        let function = Sym::<'c>::Function(Function::Defun {
+            name: name.clone(),
+            args,
+            body,
+        });
+        self.symbols.insert(name, function.clone());
+        function.as_value()
     }
 
     pub fn symbols(&self) -> BTreeMap<Symbol<'c>, Sym<'c>> {
         self.symbols.clone()
     }
 
-    pub fn get_symbol_function(
-        &mut self,
-        sym: &str,
-    ) -> Result<Option<BuiltinFunction>> {
+    pub fn get_symbol_function(&mut self, sym: &str) -> Result<Option<Function<'c>>> {
         let symbol = try_result!(self.get_symbol(sym)).clone();
         match symbol {
             Sym::Value(item) => Ok(None),
-            Sym::BuiltinFunction(_sym, function) => Ok(Some(function)),
-            Sym::Function(name, args, body) => {
-                dbg!(&name, &args, &body);
-                Err(with_caller!(runtime_error(
-                    format!(
-                        "symbol {:#?} is not builtin function: (defun {} {} {})",
-                        &name, &name, &args, &body
-                    ),
-                    None
-                )))
-            },
+            Sym::Function(function) => Ok(Some(function)),
         }
     }
 
@@ -191,9 +252,11 @@ impl<'c> VirtualMachine<'c> {
         sym: &Symbol<'c>,
         list: Value<'c>,
     ) -> Result<Value<'c>> {
+        let vm = UniquePointer::read_only(self);
+
         match try_result!(self.get_symbol_function(sym.symbol())) {
             Some(function) => {
-                let result = function(UniquePointer::read_only(self), list);
+                let result = function.call(vm, cdr(&list));
                 match result {
                     Ok(item) => Ok(self.eval(item)?),
                     Err(error) => Err(runtime_error(
@@ -221,11 +284,11 @@ impl<'c> VirtualMachine<'c> {
         match &item {
             Value::List(_) | Value::QuotedList(_) => match car(&item) {
                 Value::Symbol(ref symbol) =>
-                    Ok(try_result!(self.eval_symbol_function(symbol, cdr(&item)))),
+                    Ok(try_result!(self.eval_symbol(symbol, cdr(&item)))),
                 _ => Ok(item.quote()),
             },
             Value::Symbol(symbol) | Value::QuotedSymbol(symbol) =>
-                Ok(try_result!(self.eval_symbol(symbol.symbol()))),
+                Ok(try_result!(self.eval_symbol(symbol, cdr(&item)))),
             value => Ok(value.clone()),
         }
     }
@@ -236,12 +299,15 @@ impl<'c> VirtualMachine<'c> {
         let previous = self
             .symbols
             .insert(sym.clone(), symbol_value.clone());
-        //("setq", &self.symbols);
+
         let item = match previous.unwrap_or_else(|| symbol_value) {
             Sym::Value(value) => value.clone(),
-            Sym::BuiltinFunction(sym, _) => Value::symbol(sym.clone()),
-            Sym::Function(name, args, body) => {
+            Sym::Function(Function::Defun { name, args, body }) => {
                 dbg!(&sym, &item, &name, &body, &args);
+                item
+            },
+            Sym::Function(Function::Builtin { name, function }) => {
+                dbg!(&sym, &item, &name, &function);
                 item
             },
         };
@@ -256,7 +322,7 @@ impl<'c> VirtualMachine<'c> {
         } else {
             match car(&list) {
                 Value::Symbol(ref sym) => {
-                    //(&sym);
+                    dbg!(&sym);
                     Ok(try_result!(self.eval_symbol_function(sym, cdr(&list))))
                 },
                 Value::List(_) => {
@@ -288,27 +354,17 @@ impl<'c> VirtualMachine<'c> {
         ]))
     }
 
-    pub fn eval_symbol(&mut self, sym: &str) -> Result<Value<'c>> {
-        let symbol =
-            try_result!(unsafe {
-                std::mem::transmute::<
-                    &&mut VirtualMachine<'c>,
-                    &mut &mut VirtualMachine<'c>,
-                >(&self)
-            }
-            .get_symbol(sym));
+    pub fn eval_symbol(
+        &mut self,
+        sym: &Symbol<'c>,
+        args: Value<'c>,
+    ) -> Result<Value<'c>> {
+        let mut vm = UniquePointer::read_only(self);
+        let symbol = try_result!(vm.inner_mut().get_symbol(sym.symbol()));
         //(&sym, &symbol);
         match symbol {
             Sym::Value(value) => Ok(value.clone()),
-            Sym::BuiltinFunction(sym, _) =>
-                Ok(Value::string(format!("builtin function {:#?}", sym))),
-            Sym::Function(name, args, body) => Ok(try_result!(unsafe {
-                std::mem::transmute::<
-                    &&mut VirtualMachine<'c>,
-                    &mut &mut VirtualMachine<'c>,
-                >(&self)
-            }
-            .eval_defun(name.clone(), args.clone(), append(body.clone())))),
+            Sym::Function(function) => Ok(try_result!(function.call(vm, args))),
         }
     }
 }
