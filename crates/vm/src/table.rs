@@ -5,7 +5,9 @@ use minilisp_data_structures::{AsValue, Cell, Quotable, Symbol, Value};
 use minilisp_util::{try_result, unexpected, with_caller};
 use unique_pointer::UniquePointer;
 
-use crate::{builtin, BuiltinFunction, Context, Function, Result, Sym, VirtualMachine};
+use crate::{
+    builtin, info, warn, BuiltinFunction, Context, Function, Result, Sym, VirtualMachine,
+};
 
 pub type SymTable<'c> = BTreeMap<Symbol<'c>, Sym<'c>>;
 
@@ -64,24 +66,29 @@ impl<'c> SymbolTable<'c> {
 
     pub fn get(
         &mut self,
-        context: UniquePointer<Context<'c>>,
+        mut vm: UniquePointer<Context<'c>>,
         sym: &Symbol<'c>,
     ) -> Result<Sym<'c>> {
-        Ok(
-            if let Some(value) = self
-                .locals
-                .get(sym)
-                .or_else(|| self.globals.get(sym))
-            {
-                value.clone()
-            } else {
-                // trying to get a non-existing symbol places it into
-                // the local context
-                self.locals
-                    .insert(sym.clone(), Sym::Value(sym.as_value()));
-                Sym::Value(sym.as_value())
-            },
-        )
+        info!(format!("SymbolTable.get {:#?}", &sym));
+        dbg!(&self, sym);
+        let unevaluated_value = if let Some(value) = self
+            .locals
+            .get(sym)
+            .or_else(|| self.globals.get(sym))
+        {
+            value.clone()
+        } else {
+            // trying to get a non-existing symbol places it into
+            // the local context
+            self.locals
+                .insert(sym.clone(), Sym::Value(sym.as_value()));
+            Sym::Value(sym.as_value())
+        }
+        .as_value();
+
+        let evaluated_value = try_result!(vm.eval(unevaluated_value.clone()));
+        dbg!(&unevaluated_value, &evaluated_value);
+        Ok(Sym::Value(evaluated_value))
     }
 }
 

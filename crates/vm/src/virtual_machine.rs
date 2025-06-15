@@ -61,14 +61,12 @@ impl<'c> VirtualMachine<'c> {
     }
 
     pub fn eval_string(&mut self, string: &'c str) -> Result<Value<'c>> {
-        warn!(format!("\neval_string {:#?}", &string));
         let value = try_result!(self.push_context().eval_string(string));
         self.update_symbols();
         Ok(value)
     }
 
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
-        warn!(format!("eval {:#?}", &item));
         let value = try_result!(self.push_context().eval(item));
         self.update_symbols();
         Ok(value)

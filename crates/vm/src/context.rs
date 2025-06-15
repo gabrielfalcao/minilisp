@@ -105,25 +105,20 @@ impl<'c> Context<'c> {
     }
 
     pub fn eval_string(&mut self, string: &'c str) -> Result<Value<'c>> {
-        warn!("\neval_string");
+        warn!(format!("{:#?}.eval_string {:#?}", &self, &string));
         Ok(try_result!(self.eval(try_result!(parse_source(string)))))
     }
 
     pub fn eval(&mut self, item: Value<'c>) -> Result<Value<'c>> {
+        warn!(format!("eval {:#?}", &item));
+        dbg!(&self, &item);
         if item.is_quoted() {
             return Ok(item);
         }
-        warn!("\neval");
-        dbg!(&self, &item);
+        // dbg!(&self, &item);
         match &item {
             Value::List(_) | Value::QuotedList(_) =>
                 Ok(try_result!(self.eval_list(item))),
-
-            // Value::List(_) | Value::QuotedList(_) => match car(&item) {
-            //     Value::Symbol(ref symbol) | Value::QuotedSymbol(ref symbol) =>
-            //         Ok(try_result!(self.eval_symbol(symbol, cdr(&item)))),
-            //     _ => Ok(item.quote()),
-            // },
             Value::Symbol(symbol) | Value::QuotedSymbol(symbol) =>
                 Ok(try_result!(self.eval_symbol(symbol, cdr(&item)))),
             value => Ok(value.clone()),
@@ -155,7 +150,7 @@ impl<'c> Context<'c> {
             return Ok(list);
         }
 
-        warn!("\neval_list");
+        warn!("eval_list");
         dbg!(&self, &list);
         if list.is_empty() {
             Ok(Value::Nil)
